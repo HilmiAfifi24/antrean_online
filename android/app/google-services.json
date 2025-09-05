@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "96955088288",
+    "project_id": "antrean-online-e0060",
+    "storage_bucket": "antrean-online-e0060.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96955088288:android:d9e1fd53902dbb1e2038c5",
+        "android_client_info": {
+          "package_name": "com.example.antrean_online"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2jxOIcZd7g-Iceo9ByD6hGbQboU9rJhg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96955088288:android:47df0d15431b8d992038c5",
+        "android_client_info": {
+          "package_name": "com.example.coba_autentikasi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2jxOIcZd7g-Iceo9ByD6hGbQboU9rJhg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96955088288:android:646353aa7f060eea2038c5",
+        "android_client_info": {
+          "package_name": "com.example.klinik_pens"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2jxOIcZd7g-Iceo9ByD6hGbQboU9rJhg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
