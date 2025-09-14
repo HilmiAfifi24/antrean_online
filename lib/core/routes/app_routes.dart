@@ -7,6 +7,8 @@ class AppRoutes {
 
   // Admin
   static const admin = '/admin';
+  static const adminDoctors = '/admin/doctors';
+  static const adminSchedules = '/admin/schedules';
 
   // Dokter
   static const dokter = '/dokter';
