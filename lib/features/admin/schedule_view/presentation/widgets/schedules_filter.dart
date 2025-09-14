@@ -1,42 +1,45 @@
-import 'package:antrean_online/features/admin/doctor_view/presentation/controllers/doctor_admin_controller.dart';
+import 'package:antrean_online/features/admin/schedule_view/presentation/controllers/schedule_admin_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class DoctorsFilter extends StatelessWidget {
-  const DoctorsFilter({super.key}); 
+class SchedulesFilter extends StatelessWidget {
+  const SchedulesFilter({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 50,
-      child: GetBuilder<DoctorController>(
+      child: GetBuilder<ScheduleController>(
         builder: (controller) {
-          final specializations = ['Semua', ...controller.specializations];
+          final doctors = ['Semua', ...controller.doctors.map((d) => d.namaLengkap)];
           
           return ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: specializations.length,
+            itemCount: doctors.length,
             itemBuilder: (context, index) {
-              final specialization = specializations[index];
+              final doctorName = doctors[index];
+              final doctorId = index == 0 
+                  ? '' 
+                  : controller.doctors[index - 1].id;
+              
               final isSelected = index == 0 
-                  ? controller.searchController.text.isEmpty && controller.selectedSpecialization.isEmpty
-                  : controller.selectedSpecialization == specialization;
+                  ? controller.searchController.text.isEmpty && controller.selectedDoctorId.isEmpty
+                  : controller.selectedDoctorId == doctorId;
 
               return Padding(
                 padding: EdgeInsets.only(
-                  right: index == specializations.length - 1 ? 0 : 12,
+                  right: index == doctors.length - 1 ? 0 : 12,
                 ),
                 child: FilterChip(
-                  label: Text(specialization),
+                  label: Text(doctorName),
                   selected: isSelected,
                   onSelected: (selected) {
                     if (selected) {
-                      if (specialization == 'Semua') {
-                        controller.setSelectedSpecialization('');
+                      if (doctorName == 'Semua') {
+                        controller.filterByDoctor('');
                         controller.clearSearch();
                       } else {
-                        controller.setSelectedSpecialization(specialization);
-                        controller.filterBySpecialization(specialization);
+                        controller.filterByDoctor(doctorId);
                       }
                     }
                   },

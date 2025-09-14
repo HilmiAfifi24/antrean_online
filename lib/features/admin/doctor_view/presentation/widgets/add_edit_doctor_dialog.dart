@@ -331,7 +331,7 @@ class AddEditDoctorDialog extends StatelessWidget {
             ),
           ),
           child: Obx(() => DropdownButtonFormField<String>(
-            value: controller.selectedSpecialization.isEmpty 
+            initialValue: controller.selectedSpecialization.isEmpty 
                 ? null 
                 : controller.selectedSpecialization,
             hint: const Text(
