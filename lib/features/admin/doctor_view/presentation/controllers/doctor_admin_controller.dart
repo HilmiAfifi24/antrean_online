@@ -58,6 +58,7 @@ class DoctorController extends GetxController {
   final specializationController = TextEditingController();
   final phoneController = TextEditingController();
   final emailController = TextEditingController();
+  final passwordController = TextEditingController(); // TAMBAHKAN INI
 
   @override
   void onInit() {
@@ -80,6 +81,7 @@ class DoctorController extends GetxController {
     identificationController.addListener(_validateForm);
     phoneController.addListener(_validateForm);
     emailController.addListener(_validateForm);
+    passwordController.addListener(_validateForm); // TAMBAHKAN INI
   }
 
   @override
@@ -90,6 +92,7 @@ class DoctorController extends GetxController {
     specializationController.dispose();
     phoneController.dispose();
     emailController.dispose();
+    passwordController.dispose(); // TAMBAHKAN INI
     super.onClose();
   }
 
@@ -179,7 +182,7 @@ class DoctorController extends GetxController {
     update();
   }
 
-  // Add new doctor
+  // Add new doctor - PERBAIKI INI
   Future<void> addNewDoctor() async {
     if (!_isFormValid.value) return;
 
@@ -198,7 +201,8 @@ class DoctorController extends GetxController {
         createdAt: DateTime.now(),
       );
 
-      await addDoctor(doctor);
+      // KIRIM PASSWORD JUGA
+      await addDoctor(doctor, passwordController.text.trim());
       _clearForm();
       await loadDoctors(); // Refresh list
       Get.back(); // Close form dialog
@@ -300,6 +304,7 @@ class DoctorController extends GetxController {
     _selectedSpecialization.value = doctor.spesialisasi;
     phoneController.text = doctor.nomorTelepon;
     emailController.text = doctor.email;
+    // Tidak mengisi password saat edit (keamanan)
     _validateForm();
   }
 
@@ -310,25 +315,31 @@ class DoctorController extends GetxController {
     specializationController.clear();
     phoneController.clear();
     emailController.clear();
+    passwordController.clear(); // TAMBAHKAN INI
     _selectedSpecialization.value = '';
     _currentDoctor.value = null;
     _isFormValid.value = false;
   }
 
-  // Validate form
+  // Validate form - PERBAIKI INI
   void _validateForm() {
     final name = nameController.text.trim();
     final identification = identificationController.text.trim();
     final phone = phoneController.text.trim();
     final email = emailController.text.trim();
+    final password = passwordController.text.trim();
     final specialization = _selectedSpecialization.value;
 
+    // Untuk add: perlu password, untuk edit: tidak perlu password
+    final isAddMode = _currentDoctor.value == null;
+    
     _isFormValid.value = name.isNotEmpty &&
         identification.isNotEmpty &&
         phone.isNotEmpty &&
         email.isNotEmpty &&
         specialization.isNotEmpty &&
-        GetUtils.isEmail(email);
+        GetUtils.isEmail(email) &&
+        (isAddMode ? password.length >= 6 : true); // Password minimal 6 karakter untuk add
   }
 
   // Show error message
@@ -410,7 +421,7 @@ class DoctorController extends GetxController {
       if (currentStatus) {
         await deleteDoctor(id); // Soft delete - set isActive to false
       } else {
-        // Aktivasi dokter (implementasi repository perlu ditambahkan)
+        // Aktivasi dokter
         final doctorRepo = Get.find<DoctorAdminRepository>();
         await doctorRepo.activateDoctor(id);
       }

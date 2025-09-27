@@ -2,7 +2,6 @@ import 'package:antrean_online/core/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'core/bindings/initial_binding.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,9 +21,16 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Inter',
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      initialRoute: "/login",
+      initialRoute: AppPages.initial,
       getPages: AppPages.routes,
-      initialBinding: InitialBinding(),
+      unknownRoute: GetPage(
+        name: '/notfound',
+        page: () => Scaffold(
+          appBar: AppBar(title: Text('Page Not Found')),
+          body: Center(child: Text('The page you are looking for does not exist.')),
+        ),
+      ),
+      // initialBinding: InitialBinding(),
       debugShowCheckedModeBanner: false,
     );
   }

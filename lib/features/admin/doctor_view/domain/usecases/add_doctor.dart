@@ -6,7 +6,7 @@ class AddDoctor {
 
   AddDoctor(this.repository);
 
-  Future<String> call(DoctorAdminEntity doctor) {
-    return repository.addDoctor(doctor);
+  Future<String> call(DoctorAdminEntity doctor, String password) {
+    return repository.addDoctor(doctor, password);
   }
 }

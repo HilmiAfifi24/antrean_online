@@ -7,7 +7,7 @@ class DoctorsFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 50,
       child: GetBuilder<DoctorController>(
         builder: (controller) {

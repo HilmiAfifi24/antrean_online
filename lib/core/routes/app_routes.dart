@@ -1,5 +1,5 @@
 class AppRoutes {
-  static const initial = login;
+  // static const initial = login;
 
   // Auth
   static const login = '/login';
@@ -15,4 +15,10 @@ class AppRoutes {
 
   // Pasien
   static const pasien = '/pasien';
+
+  // splash routes for each roles
+  static const adminSplash = '/admin/splash';
+  static const doctorSplash = '/doctor/splash';
+  static const patientSplash = '/patient/splash';
+  static const roleSelection = '/role-selection';
 }
