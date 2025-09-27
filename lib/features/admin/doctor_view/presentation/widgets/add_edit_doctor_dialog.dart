@@ -133,6 +133,12 @@ class AddEditDoctorDialog extends StatelessWidget {
                           ),
                         ),
                       ),
+
+                    // Password Field (hanya untuk mode tambah)
+                    if (!isEditing) ...[
+                      const SizedBox(height: 20),
+                      _buildPasswordField(controller),
+                    ],
                   ],
                 ),
               ),
@@ -279,6 +285,101 @@ class AddEditDoctorDialog extends StatelessWidget {
       ],
     );
   }
+
+  // Password field khusus dengan toggle visibility
+Widget _buildPasswordField(DoctorController controller) {
+  // deklarasi variable di luar builder supaya bisa di-toggle oleh StatefulBuilder
+  bool isPasswordVisible = false;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Row(
+        children: [
+          Text(
+            'Password',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          Text(
+            ' *',
+            style: TextStyle(
+              color: Color(0xFFEF4444),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            return TextField(
+              controller: controller.passwordController,
+              obscureText: !isPasswordVisible,
+              decoration: InputDecoration(
+                hintText: 'Masukkan password (minimal 6 karakter)',
+                hintStyle: const TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 14,
+                ),
+                prefixIcon: const Icon(
+                  Icons.lock_rounded,
+                  color: Color(0xFF64748B),
+                  size: 20,
+                ),
+                suffixIcon: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      isPasswordVisible = !isPasswordVisible;
+                    });
+                  },
+                  icon: Icon(
+                    // <-- ternary expression harus ada di sini, tidak terputus
+                    isPasswordVisible
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: const Color(0xFF64748B),
+                    size: 20,
+                  ),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+              ),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF1E293B),
+              ),
+            );
+          },
+        ),
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'Password akan digunakan dokter untuk login ke sistem',
+        style: TextStyle(
+          fontSize: 12,
+          color: Color(0xFF64748B),
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+    ],
+  );
+}
+
 
   Widget _buildSpecializationField(DoctorController controller) {
     final specializations = [

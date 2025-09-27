@@ -21,9 +21,9 @@ class DoctorAdminRepositoryImpl implements DoctorAdminRepository {
   }
 
   @override
-  Future<String> addDoctor(DoctorAdminEntity doctor) async {
+  Future<String> addDoctor(DoctorAdminEntity doctor, String password) async {
     final model = DoctorAdminModel.fromEntity(doctor);
-    return await remoteDataSource.addDoctor(model);
+    return await remoteDataSource.addDoctor(model, password);
   }
 
   @override

@@ -3,7 +3,7 @@ import 'package:antrean_online/features/admin/doctor_view/domain/entities/doctor
 abstract class DoctorAdminRepository {
   Future<List<DoctorAdminEntity>> getAllDoctors();
   Future<DoctorAdminEntity?> getDoctorById(String id);
-  Future<String> addDoctor(DoctorAdminEntity doctor);
+  Future<String> addDoctor(DoctorAdminEntity doctor, String password);
   Future<void> updateDoctor(String id, DoctorAdminEntity doctor);
   Future<void> deleteDoctor(String id);
   Future<void> activateDoctor(String id);

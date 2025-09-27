@@ -33,11 +33,11 @@ class DoctorAdminRemoteDatasource {
   }
 
   // Add new doctor
-  Future<String> addDoctor(DoctorAdminModel doctor) async {
+  Future<String> addDoctor(DoctorAdminModel doctor, String password) async {
     // Create user account first
     final userCredential = await auth.createUserWithEmailAndPassword(
       email: doctor.email,
-      password: 'defaultPassword123!', // Should be generated or set by admin
+      password: password, 
     );
 
     // Add user document
