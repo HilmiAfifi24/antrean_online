@@ -1,13 +1,22 @@
 import 'package:antrean_online/core/routes/app_pages.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  
-  runApp(MyApp());
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: AndroidProvider.playIntegrity,
+    appleProvider: AppleProvider.appAttest,
+  );
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]).then((
+    _,
+  ) {
+    runApp(MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -27,7 +36,9 @@ class MyApp extends StatelessWidget {
         name: '/notfound',
         page: () => Scaffold(
           appBar: AppBar(title: Text('Page Not Found')),
-          body: Center(child: Text('The page you are looking for does not exist.')),
+          body: Center(
+            child: Text('The page you are looking for does not exist.'),
+          ),
         ),
       ),
       // initialBinding: InitialBinding(),

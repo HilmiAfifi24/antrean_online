@@ -106,7 +106,7 @@ class RegisterPage extends StatelessWidget {
                       text: "Sudah punya akun? Masuk di sini",
                       isOutlined: true,
                       icon: Icons.login,
-                      textColor: Colors.grey[700],
+                      // textColor: Colors.grey[700],
                       onPressed: () => Get.toNamed("/login"),
                     ),
                   ],

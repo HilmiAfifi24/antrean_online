@@ -1,6 +1,8 @@
 import 'package:antrean_online/core/bindings/initial_binding.dart';
 import 'package:antrean_online/features/admin/doctor_view/doctor_admin_binding.dart';
 import 'package:antrean_online/features/admin/doctor_view/presentation/pages/doctor_admin_page.dart';
+import 'package:antrean_online/features/admin/patient_view/presentation/pages/patient_admin_page.dart';
+import 'package:antrean_online/features/admin/patient_view/patient_admin_binding.dart';
 import 'package:antrean_online/features/admin/schedule_view/schedule_admin_binding.dart';
 import 'package:antrean_online/features/admin/schedule_view/presentation/pages/schedule_admin_page.dart';
 import 'package:antrean_online/features/admin/home/home_admin_binding.dart';
@@ -71,5 +73,10 @@ class AppPages {
       page: () => const SchedulesPage(),
       binding: ScheduleBinding(),
     ),
+    GetPage(
+      name: AppRoutes.adminPatients,
+      page: () => const PatientAdminPage(),
+      binding: PatientAdminBinding(),
+    )
   ];
 }
