@@ -1,113 +1,106 @@
 import 'package:flutter/material.dart';
 
-class CustomInputField extends StatelessWidget {
+class CustomInputField extends StatefulWidget {
   final String label;
   final String hint;
   final TextEditingController controller;
+  final IconData prefixIcon;
   final bool obscureText;
-  final IconData? prefixIcon;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
+  final TextInputType keyboardType;
+  final bool isSmallScreen;
 
   const CustomInputField({
     super.key,
     required this.label,
     required this.hint,
     required this.controller,
+    required this.prefixIcon,
     this.obscureText = false,
-    this.prefixIcon,
-    this.keyboardType,
-    this.validator,
+    this.keyboardType = TextInputType.text,
+    this.isSmallScreen = false,
   });
 
   @override
+  State<CustomInputField> createState() => _CustomInputFieldState();
+}
+
+class _CustomInputFieldState extends State<CustomInputField> {
+  bool _isPasswordVisible = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: widget.isSmallScreen ? 14 : 16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
+            widget.label,
+            style: TextStyle(
+              fontSize: widget.isSmallScreen ? 13 : 14,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1E3A8A),
+              color: const Color(0xFF334155),
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: widget.isSmallScreen ? 6 : 8),
           Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: TextFormField(
-              controller: controller,
-              obscureText: obscureText,
-              keyboardType: keyboardType,
-              validator: validator,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFF1E3A8A),
+              controller: widget.controller,
+              obscureText: widget.obscureText && !_isPasswordVisible,
+              keyboardType: widget.keyboardType,
+              style: TextStyle(
+                fontSize: widget.isSmallScreen ? 13 : 14,
+                color: const Color(0xFF1E293B),
               ),
               decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8),
+                hintText: widget.hint,
+                hintStyle: TextStyle(
+                  color: const Color(0xFFCBD5E1),
+                  fontSize: widget.isSmallScreen ? 13 : 14,
                 ),
-                prefixIcon: prefixIcon != null 
-                    ? Icon(
-                        prefixIcon, 
-                        color: const Color(0xFF3B82F6),
-                        size: 22,
-                      ) 
+                prefixIcon: Icon(
+                  widget.prefixIcon,
+                  color: const Color(0xFF3B82F6),
+                  size: widget.isSmallScreen ? 20 : 22,
+                ),
+                suffixIcon: widget.obscureText
+                    ? IconButton(
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          color: const Color(0xFF94A3B8),
+                          size: widget.isSmallScreen ? 20 : 22,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      )
                     : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
-                    width: 2,
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
-                    width: 2,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3B82F6),
-                    width: 2,
-                  ),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFEF4444),
-                    width: 2,
-                  ),
-                ),
-                focusedErrorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFEF4444),
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: widget.isSmallScreen ? 14 : 16,
+                  vertical: widget.isSmallScreen ? 14 : 16,
                 ),
               ),
             ),

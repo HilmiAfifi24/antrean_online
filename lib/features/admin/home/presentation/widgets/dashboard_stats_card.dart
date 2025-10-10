@@ -1,3 +1,4 @@
+import 'package:antrean_online/core/utils/responsive.dart';
 import 'package:flutter/material.dart';
 
 class DashboardStatCard extends StatelessWidget {
@@ -18,12 +19,28 @@ class DashboardStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
+    final rv = context.rv;
+    final screenWidth = rv.screenWidth;
+    final isSmallScreen = rv.isSmallScreen;
+    final iconSize = rv.iconSize;
+    final iconInnerSize = rv.iconInnerSize;
+    final titleFontSize = rv.titleFontSize;
+    final countFontSize = rv.countFontSize;
+    final detailFontSize = rv.detailFontSize;
+    final horizontalPadding = rv.horizontalPadding;
+    final verticalPadding = rv.verticalPadding;
+
+    
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: double.infinity,
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: verticalPadding,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -44,20 +61,20 @@ class DashboardStatCard extends StatelessWidget {
             // Icon Section with animated background
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              width: 64,
-              height: 64,
+              width: iconSize,
+              height: iconSize,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 icon,
-                size: 32,
+                size: iconInnerSize,
                 color: color,
               ),
             ),
             
-            const SizedBox(width: 20),
+            SizedBox(width: screenWidth * 0.04), // 4% of screen width
             
             // Content Section
             Expanded(
@@ -66,17 +83,17 @@ class DashboardStatCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: titleFontSize,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B),
+                      color: const Color(0xFF1E293B),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: isSmallScreen ? 4 : 8),
                   Text(
                     count.toString(),
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: countFontSize,
                       fontWeight: FontWeight.bold,
                       color: color,
                     ),
@@ -87,9 +104,9 @@ class DashboardStatCard extends StatelessWidget {
             
             // Detail Button
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 12 : 16,
+                vertical: isSmallScreen ? 6 : 8,
               ),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.1),
@@ -102,14 +119,14 @@ class DashboardStatCard extends StatelessWidget {
                     "Lihat Detail",
                     style: TextStyle(
                       color: color,
-                      fontSize: 12,
+                      fontSize: detailFontSize,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(width: 4),
                   Icon(
                     Icons.arrow_forward_ios_rounded,
-                    size: 12,
+                    size: detailFontSize,
                     color: color,
                   ),
                 ],

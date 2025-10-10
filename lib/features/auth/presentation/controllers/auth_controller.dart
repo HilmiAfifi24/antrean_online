@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import '../../domain/usecases/login_user.dart';
 import '../../domain/usecases/register_user.dart';
@@ -11,6 +12,10 @@ class AuthController extends GetxController {
     required this.loginUser,
     required this.registerUser,
   });
+
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final rememberMe = false.obs;
 
   var isLoading = false.obs;
   var currentUser = Rxn<UserEntity>();
