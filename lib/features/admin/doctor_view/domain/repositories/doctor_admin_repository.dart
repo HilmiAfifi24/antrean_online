@@ -12,4 +12,9 @@ abstract class DoctorAdminRepository {
 
   // Method tambahan untuk manajemen penuh dokter
   Future<void> permanentlyDeleteDoctor(String id);
+  
+  // Validation methods
+  Future<bool> isIdentificationNumberExists(String nomorIdentifikasi, {String? excludeDoctorId});
+  Future<bool> isPhoneNumberExists(String nomorTelepon, {String? excludeDoctorId});
+  Future<bool> isEmailExists(String email, {String? excludeDoctorId});
 }

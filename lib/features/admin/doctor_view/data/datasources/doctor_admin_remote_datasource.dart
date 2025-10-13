@@ -171,6 +171,57 @@ class DoctorAdminRemoteDatasource {
     return specializations.toList()..sort();
   }
 
+  // Check if identification number already exists
+  Future<bool> isIdentificationNumberExists(String nomorIdentifikasi, {String? excludeDoctorId}) async {
+    var query = firestore
+        .collection('doctors')
+        .where('nomor_identifikasi', isEqualTo: nomorIdentifikasi)
+        .where('is_active', isEqualTo: true);
+
+    final snapshot = await query.get();
+    
+    // Jika ada excludeDoctorId (untuk update), filter out dokter tersebut
+    if (excludeDoctorId != null) {
+      return snapshot.docs.any((doc) => doc.id != excludeDoctorId);
+    }
+    
+    return snapshot.docs.isNotEmpty;
+  }
+
+  // Check if phone number already exists
+  Future<bool> isPhoneNumberExists(String nomorTelepon, {String? excludeDoctorId}) async {
+    var query = firestore
+        .collection('doctors')
+        .where('nomor_telepon', isEqualTo: nomorTelepon)
+        .where('is_active', isEqualTo: true);
+
+    final snapshot = await query.get();
+    
+    // Jika ada excludeDoctorId (untuk update), filter out dokter tersebut
+    if (excludeDoctorId != null) {
+      return snapshot.docs.any((doc) => doc.id != excludeDoctorId);
+    }
+    
+    return snapshot.docs.isNotEmpty;
+  }
+
+  // Check if email already exists
+  Future<bool> isEmailExists(String email, {String? excludeDoctorId}) async {
+    var query = firestore
+        .collection('doctors')
+        .where('email', isEqualTo: email)
+        .where('is_active', isEqualTo: true);
+
+    final snapshot = await query.get();
+    
+    // Jika ada excludeDoctorId (untuk update), filter out dokter tersebut
+    if (excludeDoctorId != null) {
+      return snapshot.docs.any((doc) => doc.id != excludeDoctorId);
+    }
+    
+    return snapshot.docs.isNotEmpty;
+  }
+
   // Private: log admin activities
   Future<void> _logActivity({
     required String title,
