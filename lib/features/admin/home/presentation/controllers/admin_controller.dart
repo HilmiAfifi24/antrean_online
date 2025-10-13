@@ -35,9 +35,9 @@ class AdminController extends GetxController {
 
   void _setupRealtimeListener() {
     _statsSubscription?.cancel();
+    // Listen to doctors collection untuk auto-update saat ada perubahan
     _statsSubscription = FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: 'dokter')
+        .collection('doctors')
         .snapshots()
         .listen((snapshot) {
       loadDashboardData();
