@@ -5,8 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/admin_controller.dart';
 
-class AdminHomePage extends StatelessWidget {
+class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
+
+  @override
+  State<AdminHomePage> createState() => _AdminHomePageState();
+}
+
+class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh data saat pertama kali dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Get.find<AdminController>().loadDashboardData();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -58,4 +58,19 @@ class DoctorAdminRepositoryImpl implements DoctorAdminRepository {
   Future<List<String>> getSpecializations() async {
     return await remoteDataSource.getSpecializations();
   }
+
+  @override
+  Future<bool> isIdentificationNumberExists(String nomorIdentifikasi, {String? excludeDoctorId}) async {
+    return await remoteDataSource.isIdentificationNumberExists(nomorIdentifikasi, excludeDoctorId: excludeDoctorId);
+  }
+
+  @override
+  Future<bool> isPhoneNumberExists(String nomorTelepon, {String? excludeDoctorId}) async {
+    return await remoteDataSource.isPhoneNumberExists(nomorTelepon, excludeDoctorId: excludeDoctorId);
+  }
+
+  @override
+  Future<bool> isEmailExists(String email, {String? excludeDoctorId}) async {
+    return await remoteDataSource.isEmailExists(email, excludeDoctorId: excludeDoctorId);
+  }
 }
