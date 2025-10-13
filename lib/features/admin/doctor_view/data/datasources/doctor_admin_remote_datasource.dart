@@ -1,4 +1,3 @@
-// features/admin/doctors/data/datasources/doctor_remote_datasource.dart
 import 'package:antrean_online/features/admin/doctor_view/data/models/doctor_admin_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -27,20 +26,17 @@ class DoctorAdminRemoteDatasource {
   // Get doctor by ID
   Future<DoctorAdminModel?> getDoctorById(String id) async {
     final doc = await firestore.collection('doctors').doc(id).get();
-    
     if (!doc.exists) return null;
     return DoctorAdminModel.fromFirestore(doc);
   }
 
   // Add new doctor
   Future<String> addDoctor(DoctorAdminModel doctor, String password) async {
-    // Create user account first
     final userCredential = await auth.createUserWithEmailAndPassword(
       email: doctor.email,
-      password: password, 
+      password: password,
     );
 
-    // Add user document
     await firestore.collection('users').doc(userCredential.user!.uid).set({
       'email': doctor.email,
       'nama_lengkap': doctor.namaLengkap,
@@ -49,13 +45,11 @@ class DoctorAdminRemoteDatasource {
       'created_at': FieldValue.serverTimestamp(),
     });
 
-    // Add doctor document with user_id reference
     final doctorData = doctor.toFirestore();
     doctorData['user_id'] = userCredential.user!.uid;
 
     final docRef = await firestore.collection('doctors').add(doctorData);
-    
-    // Log activity
+
     await _logActivity(
       title: 'Dokter Baru Ditambahkan',
       subtitle: 'Dr. ${doctor.namaLengkap} telah ditambahkan ke sistem',
@@ -72,7 +66,6 @@ class DoctorAdminRemoteDatasource {
         .doc(id)
         .update(doctor.toFirestoreForUpdate());
 
-    // Update user document if needed
     if (doctor.userId.isNotEmpty) {
       await firestore.collection('users').doc(doctor.userId).update({
         'nama_lengkap': doctor.namaLengkap,
@@ -89,7 +82,7 @@ class DoctorAdminRemoteDatasource {
     );
   }
 
-  // Delete doctor (soft delete by setting isActive to false)
+  // Soft delete doctor (set isActive to false)
   Future<void> deleteDoctor(String id) async {
     final doctor = await getDoctorById(id);
     if (doctor == null) throw Exception('Doctor not found');
@@ -99,7 +92,6 @@ class DoctorAdminRemoteDatasource {
       'updated_at': FieldValue.serverTimestamp(),
     });
 
-    // Update user status
     if (doctor.userId.isNotEmpty) {
       await firestore.collection('users').doc(doctor.userId).update({
         'is_active': false,
@@ -108,53 +100,50 @@ class DoctorAdminRemoteDatasource {
     }
 
     await _logActivity(
-      title: 'Dokter Dihapus',
-      subtitle: 'Dr. ${doctor.namaLengkap} telah dihapus dari sistem',
-      type: 'doctor_deleted',
+      title: 'Dokter Dinonaktifkan',
+      subtitle: 'Dr. ${doctor.namaLengkap} telah dinonaktifkan',
+      type: 'doctor_deactivated',
     );
   }
 
-  // Activate doctor
-  Future<void> activateDoctor(String id) async {
+  // Permanently delete doctor
+  Future<void> permanentlyDeleteDoctor(String id) async {
     final doctor = await getDoctorById(id);
     if (doctor == null) throw Exception('Doctor not found');
 
-    await firestore.collection('doctors').doc(id).update({
-      'is_active': true,
-      'updated_at': FieldValue.serverTimestamp(),
-    });
+    await firestore.collection('doctors').doc(id).delete();
 
     if (doctor.userId.isNotEmpty) {
-      await firestore.collection('users').doc(doctor.userId).update({
-        'is_active': true,
-        'updated_at': FieldValue.serverTimestamp(),
-      });
+      await firestore.collection('users').doc(doctor.userId).delete();
     }
 
     await _logActivity(
-      title: 'Dokter Diaktifkan',
-      subtitle: 'Dr. ${doctor.namaLengkap} telah diaktifkan kembali',
-      type: 'doctor_activated',
+      title: 'Dokter Dihapus Permanen',
+      subtitle: 'Dr. ${doctor.namaLengkap} telah dihapus permanen dari sistem',
+      type: 'doctor_permanently_deleted',
     );
   }
 
   // Search doctors by name or specialization
   Future<List<DoctorAdminModel>> searchDoctors(String query) async {
     final snapshot = await firestore.collection('doctors').get();
-    
+
     final doctors = snapshot.docs
         .map((doc) => DoctorAdminModel.fromFirestore(doc))
-        .where((doctor) => 
-          doctor.namaLengkap.toLowerCase().contains(query.toLowerCase()) ||
-          doctor.spesialisasi.toLowerCase().contains(query.toLowerCase()) ||
-          doctor.nomorIdentifikasi.toLowerCase().contains(query.toLowerCase())
-        ).toList();
+        .where((doctor) =>
+            doctor.namaLengkap.toLowerCase().contains(query.toLowerCase()) ||
+            doctor.spesialisasi.toLowerCase().contains(query.toLowerCase()) ||
+            doctor.nomorIdentifikasi
+                .toLowerCase()
+                .contains(query.toLowerCase()))
+        .toList();
 
     return doctors;
   }
 
   // Get doctors by specialization
-  Future<List<DoctorAdminModel>> getDoctorsBySpecialization(String specialization) async {
+  Future<List<DoctorAdminModel>> getDoctorsBySpecialization(
+      String specialization) async {
     final snapshot = await firestore
         .collection('doctors')
         .where('spesialisasi', isEqualTo: specialization)
@@ -169,7 +158,7 @@ class DoctorAdminRemoteDatasource {
   // Get available specializations
   Future<List<String>> getSpecializations() async {
     final snapshot = await firestore.collection('doctors').get();
-    
+
     final specializations = <String>{};
     for (final doc in snapshot.docs) {
       final data = doc.data();
@@ -178,11 +167,11 @@ class DoctorAdminRemoteDatasource {
         specializations.add(spec);
       }
     }
-    
+
     return specializations.toList()..sort();
   }
 
-  // Private method to log activities
+  // Private: log admin activities
   Future<void> _logActivity({
     required String title,
     required String subtitle,

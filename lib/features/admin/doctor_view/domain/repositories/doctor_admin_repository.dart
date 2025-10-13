@@ -6,8 +6,10 @@ abstract class DoctorAdminRepository {
   Future<String> addDoctor(DoctorAdminEntity doctor, String password);
   Future<void> updateDoctor(String id, DoctorAdminEntity doctor);
   Future<void> deleteDoctor(String id);
-  Future<void> activateDoctor(String id);
   Future<List<DoctorAdminEntity>> searchDoctors(String query);
   Future<List<DoctorAdminEntity>> getDoctorsBySpecialization(String specialization);
   Future<List<String>> getSpecializations();
+
+  // Method tambahan untuk manajemen penuh dokter
+  Future<void> permanentlyDeleteDoctor(String id);
 }

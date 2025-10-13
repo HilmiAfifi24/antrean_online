@@ -1,7 +1,6 @@
 // features/admin/doctors/presentation/pages/doctors_page.dart
 import 'package:antrean_online/features/admin/doctor_view/presentation/controllers/doctor_admin_controller.dart';
 import 'package:antrean_online/features/admin/doctor_view/presentation/widgets/doctor_card.dart';
-import 'package:antrean_online/features/admin/doctor_view/presentation/widgets/doctors_filter.dart';
 import 'package:antrean_online/features/admin/doctor_view/presentation/widgets/doctors_header.dart';
 import 'package:antrean_online/features/admin/doctor_view/presentation/widgets/doctors_search_bar.dart';
 import 'package:antrean_online/features/admin/doctor_view/presentation/widgets/empty_doctors_widget.dart';
@@ -30,7 +29,7 @@ class DoctorsPage extends StatelessWidget {
                 children: [
                   const DoctorsSearchBar(),
                   const SizedBox(height: 16),
-                  const DoctorsFilter(),
+                  // const DoctorsFilter(),
                 ],
               ),
             ),
@@ -62,7 +61,7 @@ class DoctorsPage extends StatelessWidget {
                           doctor: doctor,
                           onEdit: () => controller.showEditDoctorDialog(doctor),
                           onDelete: () => controller.removeDoctor(doctor.id, doctor.namaLengkap),
-                          onToggleStatus: () => controller.toggleDoctorStatus(doctor.id, doctor.isActive),
+                          // onToggleStatus: () => controller.toggleDoctorStatus(doctor.id, doctor.isActive),
                         );
                       },
                     );

@@ -5,14 +5,12 @@ class DoctorCard extends StatelessWidget {
   final DoctorAdminEntity doctor;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final VoidCallback onToggleStatus;
 
   const DoctorCard({
     super.key,
     required this.doctor,
     required this.onEdit,
     required this.onDelete,
-    required this.onToggleStatus,
   });
 
   @override
@@ -67,29 +65,6 @@ class DoctorCard extends StatelessWidget {
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E293B),
-                            ),
-                          ),
-                        ),
-                        // Status Badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: doctor.isActive 
-                                ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                                : const Color(0xFFEF4444).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            doctor.isActive ? 'Aktif' : 'Nonaktif',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: doctor.isActive 
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFEF4444),
                             ),
                           ),
                         ),
@@ -206,35 +181,14 @@ class DoctorCard extends StatelessWidget {
               
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: onToggleStatus,
-                  icon: Icon(
-                    doctor.isActive ? Icons.block_rounded : Icons.check_circle_rounded,
-                    size: 18,
-                  ),
-                  label: Text(doctor.isActive ? 'Nonaktifkan' : 'Aktifkan'),
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_rounded, size: 18),
+                  label: const Text('Hapus'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: doctor.isActive 
-                        ? const Color(0xFFEF4444)
-                        : const Color(0xFF10B981),
-                    side: BorderSide(
-                      color: doctor.isActive 
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF10B981),
-                    ),
+                    foregroundColor: const Color(0xFFEF4444),
+                    side: const BorderSide(color: Color(0xFFEF4444)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                ),
-              ),
-              
-              const SizedBox(width: 12),
-              
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_rounded),
-                style: IconButton.styleFrom(
-                  foregroundColor: const Color(0xFFEF4444),
-                  backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                  padding: const EdgeInsets.all(12),
                 ),
               ),
             ],
