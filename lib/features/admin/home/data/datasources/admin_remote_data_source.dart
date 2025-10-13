@@ -17,24 +17,15 @@ class AdminRemoteDataSource {
   // Get total doctors count
   Future<int> getTotalDoctors() async {
     try {
-      // Group doctors by email and get only the latest version of each
+      // Ambil langsung dari collection doctors yang aktif
       final snapshot = await firestore
-          .collection('users')
-          .where('role', isEqualTo: 'dokter')
+          .collection('doctors')
           .where('is_active', isEqualTo: true)
-          .orderBy('updated_at', descending: true)
           .get();
       
-      // Use a Set to track unique emails
-      final uniqueEmails = <String>{};
-      final uniqueDoctors = snapshot.docs.where((doc) {
-        final email = doc.data()['email'] as String;
-        return uniqueEmails.add(email); // returns true if email was not in set
-      }).toList();
-
-      
-      return uniqueDoctors.length;
+      return snapshot.docs.length;
     } catch (e) {
+      // print('Error getting total doctors: $e');
       return 0;
     }
   }

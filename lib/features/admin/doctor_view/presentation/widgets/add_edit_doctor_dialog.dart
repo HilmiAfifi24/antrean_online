@@ -86,9 +86,20 @@ class AddEditDoctorDialog extends StatelessWidget {
                     _buildFormField(
                       label: 'Nomor Identifikasi',
                       controller: controller.identificationController,
-                      hint: 'Masukkan nomor SIP/STR',
+                      hint: 'Masukkan nomor SIP/STR dokter',
                       icon: Icons.badge_rounded,
                       required: true,
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, left: 4),
+                      child: Text(
+                        '✓ Nomor identifikasi (SIP/STR) harus unik',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 20),
@@ -102,10 +113,21 @@ class AddEditDoctorDialog extends StatelessWidget {
                     _buildFormField(
                       label: 'Nomor Telepon',
                       controller: controller.phoneController,
-                      hint: 'Masukkan nomor telepon',
+                      hint: 'contoh: 081234567890 (10-15 digit)',
                       icon: Icons.phone_rounded,
                       keyboardType: TextInputType.phone,
                       required: true,
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, left: 4),
+                      child: Text(
+                        '✓ Nomor telepon harus unik (10-15 digit)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 20),
@@ -114,25 +136,28 @@ class AddEditDoctorDialog extends StatelessWidget {
                     _buildFormField(
                       label: 'Email',
                       controller: controller.emailController,
-                      hint: 'Masukkan alamat email',
+                      hint: 'contoh: nama@pens.ac.id',
                       icon: Icons.email_rounded,
                       keyboardType: TextInputType.emailAddress,
                       required: true,
                       enabled: !isEditing, // Email tidak bisa diubah saat edit
                     ),
 
-                    if (isEditing) 
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          'Email tidak dapat diubah setelah akun dibuat',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: const Color(0xFF64748B),
-                            fontStyle: FontStyle.italic,
-                          ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, left: 4),
+                      child: Text(
+                        isEditing 
+                          ? '⚠️ Email tidak dapat diubah setelah akun dibuat'
+                          : '✓ Email harus menggunakan domain @pens.ac.id',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isEditing 
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFF3B82F6),
+                          fontStyle: isEditing ? FontStyle.italic : FontStyle.normal,
                         ),
                       ),
+                    ),
 
                     // Password Field (hanya untuk mode tambah)
                     if (!isEditing) ...[
