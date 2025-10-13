@@ -16,16 +16,35 @@ class AdminRemoteDataSource {
 
   // Get total doctors count
   Future<int> getTotalDoctors() async {
-    final snapshot = await firestore
-        .collection('users')
-        .where('role', isEqualTo: 'dokter')
-        .get();
-    return snapshot.docs.length;
+    try {
+      // Group doctors by email and get only the latest version of each
+      final snapshot = await firestore
+          .collection('users')
+          .where('role', isEqualTo: 'dokter')
+          .where('is_active', isEqualTo: true)
+          .orderBy('updated_at', descending: true)
+          .get();
+      
+      // Use a Set to track unique emails
+      final uniqueEmails = <String>{};
+      final uniqueDoctors = snapshot.docs.where((doc) {
+        final email = doc.data()['email'] as String;
+        return uniqueEmails.add(email); // returns true if email was not in set
+      }).toList();
+
+      
+      return uniqueDoctors.length;
+    } catch (e) {
+      return 0;
+    }
   }
 
   // Get total schedules count
   Future<int> getTotalSchedules() async {
-    final snapshot = await firestore.collection('schedules').get();
+    final snapshot = await firestore
+        .collection('schedules')
+        .where('is_active', isEqualTo: true)
+        .get();
     return snapshot.docs.length;
   }
 
@@ -56,7 +75,7 @@ class AdminRemoteDataSource {
 
   String _formatTime(Timestamp? timestamp) {
     if (timestamp == null) return 'Baru saja';
-    
+
     final now = DateTime.now();
     final time = timestamp.toDate();
     final difference = now.difference(time);

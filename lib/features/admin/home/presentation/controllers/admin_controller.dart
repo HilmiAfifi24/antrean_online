@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import '../../domain/usecases/get_dashboard_stats.dart';
 import '../../domain/usecases/get_recent_activities.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminController extends GetxController {
   final GetDashboardStats getDashboardStats;
@@ -21,11 +23,31 @@ class AdminController extends GetxController {
   var isLoading = false.obs;
   var recentActivities = <Map<String, dynamic>>[].obs;
 
+  StreamSubscription? _statsSubscription;
+
   @override
   void onInit() {
     super.onInit();
     loadDashboardData();
     loadRecentActivities();
+    _setupRealtimeListener();
+  }
+
+  void _setupRealtimeListener() {
+    _statsSubscription?.cancel();
+    _statsSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'dokter')
+        .snapshots()
+        .listen((snapshot) {
+      loadDashboardData();
+    });
+  }
+
+  @override
+  void onClose() {
+    _statsSubscription?.cancel();
+    super.onClose();
   }
 
   // Load dashboard statistics from Firebase

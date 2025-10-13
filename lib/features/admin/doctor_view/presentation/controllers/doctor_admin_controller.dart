@@ -249,7 +249,10 @@ class DoctorController extends GetxController {
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Konfirmasi Hapus'),
-        content: Text('Apakah Anda yakin ingin menghapus dokter $name?'),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus dokter $name?\n\n'
+          'PERHATIAN: Tindakan ini akan menghapus data secara permanen dan tidak dapat dibatalkan.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
@@ -260,7 +263,7 @@ class DoctorController extends GetxController {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const Text('Hapus Permanen', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -270,9 +273,10 @@ class DoctorController extends GetxController {
 
     try {
       _isLoading.value = true;
-      await deleteDoctor(id);
+      final doctorRepo = Get.find<DoctorAdminRepository>();
+      await doctorRepo.permanentlyDeleteDoctor(id);  // Implement this method in repository
       await loadDoctors(); // Refresh list
-      _showSuccess('Dokter berhasil dihapus');
+      _showSuccess('Dokter berhasil dihapus secara permanen');
     } catch (e) {
       _showError('Gagal menghapus dokter: ${e.toString()}');
     } finally {
@@ -385,57 +389,58 @@ class DoctorController extends GetxController {
     );
   }
 
-  Future<void> toggleDoctorStatus(String id, bool currentStatus) async {
-    final action = currentStatus ? 'menonaktifkan' : 'mengaktifkan';
+  // Future<void> toggleDoctorStatus(String id, bool currentStatus) async {
+  //   final action = currentStatus ? 'menonaktifkan' : 'mengaktifkan';
     
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: Text('Konfirmasi ${currentStatus ? 'Nonaktifkan' : 'Aktifkan'}'),
-        content: Text('Apakah Anda yakin ingin $action dokter ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: currentStatus 
-                  ? const Color(0xFFEF4444)
-                  : const Color(0xFF10B981),
-            ),
-            child: Text(
-              currentStatus ? 'Nonaktifkan' : 'Aktifkan',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
+  //   final confirmed = await Get.dialog<bool>(
+  //     AlertDialog(
+  //       title: Text('Konfirmasi ${currentStatus ? 'Nonaktifkan' : 'Aktifkan'}'),
+  //       content: Text('Apakah Anda yakin ingin $action dokter ini?'),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Get.back(result: false),
+  //           child: const Text('Batal'),
+  //         ),
+  //         ElevatedButton(
+  //           onPressed: () => Get.back(result: true),
+  //           style: ElevatedButton.styleFrom(
+  //             backgroundColor: currentStatus 
+  //                 ? const Color(0xFFEF4444)
+  //                 : const Color(0xFF10B981),
+  //           ),
+  //           child: Text(
+  //             currentStatus ? 'Nonaktifkan' : 'Aktifkan',
+  //             style: const TextStyle(color: Colors.white),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
 
-    if (confirmed != true) return;
+  //   if (confirmed != true) return;
 
-    try {
-      _isLoading.value = true;
+  //   try {
+  //     _isLoading.value = true;
       
-      if (currentStatus) {
-        await deleteDoctor(id); // Soft delete - set isActive to false
-      } else {
-        // Aktivasi dokter
-        final doctorRepo = Get.find<DoctorAdminRepository>();
-        await doctorRepo.activateDoctor(id);
-      }
+  //     final doctorRepo = Get.find<DoctorAdminRepository>();
+  //     if (currentStatus) {
+  //       // Hanya mengubah status aktif
+  //       await doctorRepo.updateDoctorStatus(id, false);
+  //     } else {
+  //       // Aktivasi dokter
+  //       await doctorRepo.updateDoctorStatus(id, true);
+  //     }
       
-      await loadDoctors(); // Refresh list
-      _showSuccess(currentStatus 
-          ? 'Dokter berhasil dinonaktifkan' 
-          : 'Dokter berhasil diaktifkan');
-    } catch (e) {
-      _showError('Gagal ${currentStatus ? 'menonaktifkan' : 'mengaktifkan'} dokter: ${e.toString()}');
-    } finally {
-      _isLoading.value = false;
-    }
-  }
+  //     await loadDoctors(); // Refresh list
+  //     _showSuccess(currentStatus 
+  //         ? 'Dokter berhasil dinonaktifkan' 
+  //         : 'Dokter berhasil diaktifkan');
+  //   } catch (e) {
+  //     _showError('Gagal ${currentStatus ? 'menonaktifkan' : 'mengaktifkan'} dokter: ${e.toString()}');
+  //   } finally {
+  //     _isLoading.value = false;
+  //   }
+  // }
 
   // Method untuk validasi form (perbaiki akses)
   void validateForm() {

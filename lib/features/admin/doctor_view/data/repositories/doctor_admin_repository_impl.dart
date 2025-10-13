@@ -38,8 +38,8 @@ class DoctorAdminRepositoryImpl implements DoctorAdminRepository {
   }
 
   @override
-  Future<void> activateDoctor(String id) async {
-    await remoteDataSource.activateDoctor(id);
+  Future<void> permanentlyDeleteDoctor(String id) async {
+    await remoteDataSource.permanentlyDeleteDoctor(id);
   }
 
   @override
