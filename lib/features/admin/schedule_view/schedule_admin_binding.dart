@@ -14,6 +14,9 @@ import 'package:antrean_online/features/admin/schedule_view/domain/usecases/sear
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_schedules_by_doctor.dart';
 import 'package:antrean_online/features/admin/schedule_view/presentation/controllers/schedule_admin_controller.dart';
 import 'package:antrean_online/features/admin/doctor_view/domain/usecases/get_all_doctors.dart';
+import 'package:antrean_online/features/admin/doctor_view/data/datasources/doctor_admin_remote_datasource.dart';
+import 'package:antrean_online/features/admin/doctor_view/data/repositories/doctor_admin_repository_impl.dart';
+import 'package:antrean_online/features/admin/doctor_view/domain/repositories/doctor_admin_repository.dart';
 
 class ScheduleBinding extends Bindings {
   @override
@@ -26,7 +29,7 @@ class ScheduleBinding extends Bindings {
       Get.put<FirebaseAuth>(FirebaseAuth.instance, permanent: true);
     }
 
-    // Data Layer
+    // Data Layer - Schedule
     Get.put<ScheduleAdminRemoteDatasource>(
       ScheduleAdminRemoteDatasource(
         firestore: Get.find<FirebaseFirestore>(),
@@ -35,13 +38,32 @@ class ScheduleBinding extends Bindings {
       permanent: true,
     );
 
-    // Repository Layer
+    // Data Layer - Doctor (needed for schedule controller)
+    if (!Get.isRegistered<DoctorAdminRemoteDatasource>()) {
+      Get.put<DoctorAdminRemoteDatasource>(
+        DoctorAdminRemoteDatasource(
+          firestore: Get.find<FirebaseFirestore>(),
+          auth: Get.find<FirebaseAuth>(),
+        ),
+        permanent: true,
+      );
+    }
+
+    // Repository Layer - Schedule
     Get.put<ScheduleAdminRepository>(
       ScheduleAdminRepositoryImpl(Get.find<ScheduleAdminRemoteDatasource>()),
       permanent: true,
     );
 
-    // Use Cases Layer
+    // Repository Layer - Doctor (needed for GetAllDoctors use case)
+    if (!Get.isRegistered<DoctorAdminRepository>()) {
+      Get.put<DoctorAdminRepository>(
+        DoctorAdminRepositoryImpl(Get.find<DoctorAdminRemoteDatasource>()),
+        permanent: true,
+      );
+    }
+
+    // Use Cases Layer - Schedule
     Get.put(GetAllSchedules(Get.find<ScheduleAdminRepository>()), permanent: true);
     Get.put(GetScheduleById(Get.find<ScheduleAdminRepository>()), permanent: true);
     Get.put(AddSchedule(Get.find<ScheduleAdminRepository>()), permanent: true);
@@ -51,9 +73,9 @@ class ScheduleBinding extends Bindings {
     Get.put(SearchSchedules(Get.find<ScheduleAdminRepository>()), permanent: true);
     Get.put(GetSchedulesByDoctor(Get.find<ScheduleAdminRepository>()), permanent: true);
 
-    // Doctor use case (reuse from existing binding)
+    // Use Cases Layer - Doctor (needed for schedule controller)
     if (!Get.isRegistered<GetAllDoctors>()) {
-      Get.put(GetAllDoctors(Get.find()), permanent: true);
+      Get.put(GetAllDoctors(Get.find<DoctorAdminRepository>()), permanent: true);
     }
 
     // Controller Layer

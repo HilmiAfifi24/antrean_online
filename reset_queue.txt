@@ -1,0 +1,14 @@
+INSTRUKSI RESET QUEUE DATA:
+
+Cara 1 - Melalui Firebase Console (Paling Mudah):
+1. Buka https://console.firebase.google.com
+2. Pilih project "antrean_online"
+3. Pergi ke Firestore Database
+4. Klik collection "queues"
+5. Hapus semua dokumen di dalam collection tersebut
+6. Restart aplikasi Flutter
+
+Cara 2 - Melalui Kode (Automatic):
+Tambahkan tombol "Reset Queue" di admin panel untuk menghapus semua queue data secara otomatis.
+
+Setelah reset, nomor antrean akan mulai dari 001 lagi untuk setiap jadwal baru.

@@ -267,7 +267,7 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
                                   ),
                                 ),
                                 trailing: Text(
-                                  activity['time'],
+                                  controller.formatActivityTime(activity['timestamp']),
                                   style: const TextStyle(
                                     color: Color(0xFF9CA3AF),
                                     fontSize: 12,

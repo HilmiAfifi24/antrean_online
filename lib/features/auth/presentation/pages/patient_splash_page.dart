@@ -58,6 +58,10 @@ class _PatientSplashPageState extends State<PatientSplashPage>
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isSmallScreen = size.height < 700;
+    final isVerySmallScreen = size.height < 600;
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -74,11 +78,18 @@ class _PatientSplashPageState extends State<PatientSplashPage>
         child: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnimation,
-            child: Column(
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+                ),
+                child: Column(
               children: [
                 // Header
-                Expanded(
-                  flex: 2,
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: isVerySmallScreen ? 20 : (isSmallScreen ? 30 : 40),
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -88,11 +99,11 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                           return Transform.scale(
                             scale: _heartAnimation.value,
                             child: Container(
-                              width: 120,
-                              height: 120,
+                              width: isVerySmallScreen ? 80 : (isSmallScreen ? 100 : 120),
+                              height: isVerySmallScreen ? 80 : (isSmallScreen ? 100 : 120),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(30),
+                                borderRadius: BorderRadius.circular(isSmallScreen ? 20 : 30),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.2),
@@ -103,28 +114,28 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                               ),
                               child: Icon(
                                 Icons.favorite,
-                                size: 60,
+                                size: isVerySmallScreen ? 40 : (isSmallScreen ? 50 : 60),
                                 color: Color(0xFF7C3AED),
                               ),
                             ),
                           );
                         },
                       ),
-                      SizedBox(height: 32),
+                      SizedBox(height: isSmallScreen ? 16 : 32),
                       Text(
                         'PASIEN',
                         style: TextStyle(
-                          fontSize: 32,
+                          fontSize: isVerySmallScreen ? 24 : (isSmallScreen ? 28 : 32),
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           letterSpacing: 3,
                         ),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: isSmallScreen ? 8 : 16),
                       Text(
                         'Layanan Kesehatan Digital',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: isVerySmallScreen ? 14 : (isSmallScreen ? 16 : 18),
                           color: Colors.white.withValues(alpha: 0.9),
                           fontWeight: FontWeight.w300,
                         ),
@@ -134,34 +145,36 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                 ),
                 
                 // Service cards
-                Expanded(
-                  flex: 3,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildServiceCard(
-                                icon: Icons.calendar_today,
-                                title: 'Daftar Antrean',
-                                subtitle: 'Booking mudah',
-                                color: Colors.blue,
-                              ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 16 : 32,
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildServiceCard(
+                              icon: Icons.calendar_today,
+                              title: 'Daftar Antrean',
+                              subtitle: 'Booking mudah',
+                              color: Colors.blue,
+                              isSmallScreen: isSmallScreen,
                             ),
-                            SizedBox(width: 16),
+                          ),
+                          SizedBox(width: isSmallScreen ? 8 : 16),
                             Expanded(
                               child: _buildServiceCard(
                                 icon: Icons.access_time,
                                 title: 'Cek Jadwal',
                                 subtitle: 'Real-time',
                                 color: Colors.green,
+                                isSmallScreen: isSmallScreen,
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 16),
+                        SizedBox(height: isSmallScreen ? 8 : 16),
                         Row(
                           children: [
                             Expanded(
@@ -170,26 +183,28 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                                 title: 'Notifikasi',
                                 subtitle: 'Update antrean',
                                 color: Colors.orange,
+                                isSmallScreen: isSmallScreen,
                               ),
                             ),
-                            SizedBox(width: 16),
+                            SizedBox(width: isSmallScreen ? 8 : 16),
                             Expanded(
                               child: _buildServiceCard(
                                 icon: Icons.history,
                                 title: 'Riwayat',
                                 subtitle: 'Kunjungan',
                                 color: Colors.red,
+                                isSmallScreen: isSmallScreen,
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 32),
+                        SizedBox(height: isSmallScreen ? 16 : 32),
                         
                         Container(
-                          padding: EdgeInsets.all(24),
+                          padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20),
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.3),
                               width: 1,
@@ -200,16 +215,16 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                               Text(
                                 'Selamat Datang!',
                                 style: TextStyle(
-                                  fontSize: 22,
+                                  fontSize: isSmallScreen ? 18 : 22,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
-                              SizedBox(height: 12),
+                              SizedBox(height: isSmallScreen ? 8 : 12),
                               Text(
                                 'Daftar antrean online, pantau jadwal dokter, dan nikmati layanan kesehatan yang lebih mudah',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: isSmallScreen ? 12 : 14,
                                   color: Colors.white.withValues(alpha: 0.9),
                                   height: 1.5,
                                 ),
@@ -219,7 +234,7 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                           ),
                         ),
                         
-                        SizedBox(height: 24),
+                        SizedBox(height: isSmallScreen ? 16 : 24),
                         
                         // Action buttons
                         Row(
@@ -227,24 +242,31 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                             Expanded(
                               child: TextButton(
                                 onPressed: () => Get.offNamed(AppRoutes.login, parameters: {'role': 'patient'}),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: isSmallScreen ? 10 : 12,
+                                  ),
+                                ),
                                 child: Text(
                                   'Masuk',
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16,
+                                    fontSize: isSmallScreen ? 14 : 16,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
                             ),
-                            SizedBox(width: 16),
+                            SizedBox(width: isSmallScreen ? 8 : 16),
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: () => Get.offNamed(AppRoutes.register),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
                                   foregroundColor: Color(0xFF7C3AED),
-                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: isSmallScreen ? 10 : 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -252,7 +274,7 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                                 child: Text(
                                   'Daftar',
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: isSmallScreen ? 14 : 16,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -260,14 +282,16 @@ class _PatientSplashPageState extends State<PatientSplashPage>
                             ),
                           ],
                         ),
+                        SizedBox(height: isSmallScreen ? 16 : 24),
                       ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -277,12 +301,13 @@ class _PatientSplashPageState extends State<PatientSplashPage>
     required String title,
     required String subtitle,
     required Color color,
+    bool isSmallScreen = false,
   }) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.3),
           width: 1,
@@ -291,8 +316,8 @@ class _PatientSplashPageState extends State<PatientSplashPage>
       child: Column(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: isSmallScreen ? 32 : 40,
+            height: isSmallScreen ? 32 : 40,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
@@ -300,24 +325,26 @@ class _PatientSplashPageState extends State<PatientSplashPage>
             child: Icon(
               icon,
               color: Colors.white,
-              size: 20,
+              size: isSmallScreen ? 16 : 20,
             ),
           ),
-          SizedBox(height: 12),
+          SizedBox(height: isSmallScreen ? 8 : 12),
           Text(
             title,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isSmallScreen ? 11 : 14,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           SizedBox(height: 4),
           Text(
             subtitle,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: isSmallScreen ? 10 : 12,
               color: Colors.white.withValues(alpha: 0.8),
             ),
             textAlign: TextAlign.center,

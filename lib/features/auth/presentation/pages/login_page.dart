@@ -29,7 +29,7 @@ class LoginPage extends StatelessWidget {
           builder: (context, constraints) {
             return SingleChildScrollView(
               padding: EdgeInsets.symmetric(
-                horizontal: size.width * 0.06,
+                horizontal: isVerySmallScreen ? 16 : (isSmallScreen ? 20 : size.width * 0.06),
                 vertical: isVerySmallScreen ? 12 : (isSmallScreen ? 16 : 24),
               ),
               child: ConstrainedBox(
@@ -172,7 +172,9 @@ class LoginPage extends StatelessWidget {
                           // Register Link
                           if (role != 'admin' && role != 'doctor') ...[
                             CustomButton(
-                              text: "Belum punya akun? Daftar di sini",
+                              text: isSmallScreen 
+                                  ? "Belum punya akun? Daftar" 
+                                  : "Belum punya akun? Daftar di sini",
                               isOutlined: true,
                               icon: Icons.person_add_rounded,
                               isSmallScreen: isSmallScreen,

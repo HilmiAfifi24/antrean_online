@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../domain/usecases/login_user.dart';
 import '../../domain/usecases/register_user.dart';
@@ -43,7 +43,7 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> register(String email, String password, String role) async {
+  Future<void> register(String email, String password, String role, String name) async {
 
     if (!email.endsWith("@pens.ac.id")) {
       Get.snackbar("Error", "Email must be a valid pens.ac.id address");
@@ -51,8 +51,17 @@ class AuthController extends GetxController {
     }
     try {
       isLoading.value = true;
-      final user = await registerUser(email, password, role);
+      final user = await registerUser(email, password, role, name);
       currentUser.value = user;
+      
+      Get.snackbar(
+        "Sukses",
+        "Registrasi berhasil! Silakan login dengan akun Anda",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.shade100,
+        colorText: Colors.green.shade900,
+      );
+      
       Get.offAllNamed("/login");
     } finally {
       isLoading.value = false;
