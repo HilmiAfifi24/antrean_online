@@ -95,6 +95,7 @@ class RegisterPage extends StatelessWidget {
                               emailController.text.trim(),
                               passwordController.text.trim(),
                               role.value,
+                              nameController.text.trim(),
                             );
                           }
                         },

@@ -23,7 +23,12 @@ class AdminController extends GetxController {
   var isLoading = false.obs;
   var recentActivities = <Map<String, dynamic>>[].obs;
 
-  StreamSubscription? _statsSubscription;
+  StreamSubscription? _doctorsSubscription;
+  StreamSubscription? _schedulesSubscription;
+  StreamSubscription? _patientsSubscription;
+  StreamSubscription? _queuesSubscription;
+  StreamSubscription? _activitiesSubscription;
+  Timer? _timestampUpdateTimer;
 
   @override
   void onInit() {
@@ -31,22 +36,82 @@ class AdminController extends GetxController {
     loadDashboardData();
     loadRecentActivities();
     _setupRealtimeListener();
+    _setupTimestampUpdateTimer();
+  }
+
+  // Setup timer untuk update timestamp setiap menit
+  void _setupTimestampUpdateTimer() {
+    // Update timestamp setiap 60 detik (1 menit)
+    _timestampUpdateTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
+      // Update observable untuk trigger UI rebuild dengan timestamp baru
+      recentActivities.refresh();
+    });
   }
 
   void _setupRealtimeListener() {
-    _statsSubscription?.cancel();
-    // Listen to doctors collection untuk auto-update saat ada perubahan
-    _statsSubscription = FirebaseFirestore.instance
+    // Cancel existing subscriptions
+    _doctorsSubscription?.cancel();
+    _schedulesSubscription?.cancel();
+    _patientsSubscription?.cancel();
+    _queuesSubscription?.cancel();
+    _activitiesSubscription?.cancel();
+
+    // Listen to doctors collection
+    _doctorsSubscription = FirebaseFirestore.instance
         .collection('doctors')
         .snapshots()
         .listen((snapshot) {
       loadDashboardData();
     });
+
+    // Listen to schedules collection untuk auto-update total jadwal
+    _schedulesSubscription = FirebaseFirestore.instance
+        .collection('schedules')
+        .snapshots()
+        .listen((snapshot) {
+      loadDashboardData();
+    });
+
+    // Listen to users collection untuk auto-update total pasien
+    _patientsSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'pasien')
+        .snapshots()
+        .listen((snapshot) {
+      loadDashboardData();
+    });
+
+    // Listen to queues collection untuk auto-update total antrean
+    _queuesSubscription = FirebaseFirestore.instance
+        .collection('queues')
+        .snapshots()
+        .listen((snapshot) {
+      loadDashboardData();
+    });
+
+    // Listen to activities collection untuk auto-update riwayat aktivitas
+    _activitiesSubscription = FirebaseFirestore.instance
+        .collection('activities')
+        .orderBy('timestamp', descending: true)
+        .limit(5)
+        .snapshots()
+        .listen((snapshot) {
+      loadRecentActivities(); // Reload activities saat ada perubahan
+    });
   }
 
   @override
   void onClose() {
-    _statsSubscription?.cancel();
+    // Cancel all subscriptions
+    _doctorsSubscription?.cancel();
+    _schedulesSubscription?.cancel();
+    _patientsSubscription?.cancel();
+    _queuesSubscription?.cancel();
+    _activitiesSubscription?.cancel();
+    
+    // Cancel timestamp update timer
+    _timestampUpdateTimer?.cancel();
+    
     super.onClose();
   }
 
@@ -84,6 +149,33 @@ class AdminController extends GetxController {
     } catch (e) {
       // Handle error silently for activities
       recentActivities.value = [];
+    }
+  }
+
+  // Format timestamp untuk display (dipanggil setiap UI rebuild)
+  String formatActivityTime(dynamic timestamp) {
+    if (timestamp == null) return 'Baru saja';
+    
+    DateTime time;
+    if (timestamp is Timestamp) {
+      time = timestamp.toDate();
+    } else if (timestamp is DateTime) {
+      time = timestamp;
+    } else {
+      return 'Baru saja';
+    }
+
+    final now = DateTime.now();
+    final difference = now.difference(time);
+
+    if (difference.inMinutes < 1) {
+      return 'Baru saja';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} menit lalu';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} jam lalu';
+    } else {
+      return '${difference.inDays} hari lalu';
     }
   }
 

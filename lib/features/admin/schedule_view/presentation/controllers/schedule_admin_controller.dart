@@ -12,6 +12,8 @@ import 'package:antrean_online/features/admin/doctor_view/domain/entities/doctor
 import 'package:antrean_online/features/admin/doctor_view/domain/usecases/get_all_doctors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 
 class ScheduleController extends GetxController {
   final GetAllSchedules getAllSchedules;
@@ -46,6 +48,10 @@ class ScheduleController extends GetxController {
   final RxBool _isFormValid = false.obs;
   final Rxn<ScheduleAdminEntity> _currentSchedule = Rxn<ScheduleAdminEntity>();
   final RxBool _includeInactive = false.obs;
+
+  // Stream subscriptions for realtime updates
+  StreamSubscription? _doctorsSubscription;
+  StreamSubscription? _schedulesSubscription;
 
   // Getters
   List<ScheduleAdminEntity> get schedules => _schedules.toList();
@@ -87,6 +93,7 @@ class ScheduleController extends GetxController {
     super.onInit();
     loadSchedules();
     loadDoctors();
+    _setupRealtimeListeners();
     
     // Listen to search changes
     searchController.addListener(() {
@@ -102,8 +109,37 @@ class ScheduleController extends GetxController {
     maxPatientsController.addListener(_validateForm);
   }
 
+  // Setup realtime listeners untuk auto-update data
+  void _setupRealtimeListeners() {
+    // Cancel existing subscriptions
+    _doctorsSubscription?.cancel();
+    _schedulesSubscription?.cancel();
+
+    // Listen to doctors collection untuk auto-update list dokter
+    _doctorsSubscription = FirebaseFirestore.instance
+        .collection('doctors')
+        .where('is_active', isEqualTo: true)
+        .snapshots()
+        .listen((snapshot) {
+      loadDoctors(); // Reload doctors when collection changes
+    });
+
+    // Listen to schedules collection untuk auto-update list jadwal
+    _schedulesSubscription = FirebaseFirestore.instance
+        .collection('schedules')
+        .snapshots()
+        .listen((snapshot) {
+      loadSchedules(); // Reload schedules when collection changes
+    });
+  }
+
   @override
   void onClose() {
+    // Cancel subscriptions to prevent memory leaks
+    _doctorsSubscription?.cancel();
+    _schedulesSubscription?.cancel();
+    
+    // Dispose controllers
     searchController.dispose();
     doctorController.dispose();
     maxPatientsController.dispose();

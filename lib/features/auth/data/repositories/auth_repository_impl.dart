@@ -13,8 +13,8 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<UserEntity> register(String email, String password, String role) {
-    return remoteDataSource.register(email, password, role);
+  Future<UserEntity> register(String email, String password, String role, String name) {
+    return remoteDataSource.register(email, password, role, name);
   }
 
   @override

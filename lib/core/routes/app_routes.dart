@@ -13,9 +13,15 @@ class AppRoutes {
 
   // Dokter
   static const dokter = '/dokter';
+  static const doctorHome = '/doctor/home';
 
   // Pasien
   static const pasien = '/pasien';
+  static const doctorList = '/patient/doctors';
+  static const queue = '/patient/queue';
+  static const selectSchedule = '/patient/select-schedule';
+  static const booking = '/patient/booking';
+  static const profile = '/patient/profile';
 
   // splash routes for each roles
   static const adminSplash = '/admin/splash';

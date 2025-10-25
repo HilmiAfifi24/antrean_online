@@ -1,0 +1,25 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "queues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "patient_id", "order": "ASC" },
+        { "fieldPath": "status", "order": "ASC" },
+        { "fieldPath": "created_at", "order": "DESC" },
+        { "fieldPath": "__name__", "order": "ASC" }
+      ]
+    },
+    {
+      "collectionGroup": "queues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schedule_id", "order": "ASC" },
+        { "fieldPath": "status", "order": "ASC" },
+        { "fieldPath": "queue_number", "order": "ASC" },
+        { "fieldPath": "__name__", "order": "ASC" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

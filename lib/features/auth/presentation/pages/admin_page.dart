@@ -28,18 +28,15 @@ class DokterDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<AuthController>();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Dokter Dashboard"),
-        actions: [
-          IconButton(
-            onPressed: () => controller.logout(),
-            icon: const Icon(Icons.logout),
-          )
-        ],
+    // Redirect to DoctorHomePage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Get.offNamed('/doctor/home');
+    });
+    
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
       ),
-      body: const Center(child: Text("Halo Dokter")),
     );
   }
 }

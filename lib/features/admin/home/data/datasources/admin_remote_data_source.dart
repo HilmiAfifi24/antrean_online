@@ -58,6 +58,7 @@ class AdminRemoteDataSource {
       return {
         'title': data['title'] ?? '',
         'subtitle': data['subtitle'] ?? '',
+        'timestamp': data['timestamp'], // Simpan raw timestamp
         'time': _formatTime(data['timestamp'] as Timestamp?),
         'type': data['type'] ?? 'default',
       };

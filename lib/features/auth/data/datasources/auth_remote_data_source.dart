@@ -24,7 +24,7 @@ class AuthRemoteDataSource {
     return UserModel.fromFirestore(doc.data()!, uid);
   }
 
-  Future<UserModel> register(String email, String password, String role) async {
+  Future<UserModel> register(String email, String password, String role, String name) async {
     if (!email.endsWith("@pens.ac.id")) {
       throw Exception("Email must be a valid pens.ac.id address");
     }
@@ -35,7 +35,14 @@ class AuthRemoteDataSource {
     final uid = credential.user!.uid;
 
     final userModel = UserModel(uid: uid, email: email, role: role);
-    await firestore.collection("users").doc(uid).set(userModel.toMap());
+    
+    // Save user data with name to Firestore
+    await firestore.collection("users").doc(uid).set({
+      ...userModel.toMap(),
+      'name': name,
+      'created_at': FieldValue.serverTimestamp(),
+    });
+    
     return userModel;
   }
 
