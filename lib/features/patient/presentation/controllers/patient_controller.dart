@@ -5,14 +5,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../../domain/entities/schedule_entity.dart';
 import '../../domain/usecases/get_all_schedules.dart';
+import '../../domain/usecases/get_schedules_by_day.dart';
 import '../../domain/usecases/search_schedules.dart';
 
 class PatientController extends GetxController {
   final GetAllSchedules getAllSchedules;
+  final GetSchedulesByDay getSchedulesByDay;
   final SearchSchedules searchSchedules;
 
   PatientController({
     required this.getAllSchedules,
+    required this.getSchedulesByDay,
     required this.searchSchedules,
   });
 
@@ -26,6 +29,7 @@ class PatientController extends GetxController {
 
   // Stream subscriptions
   StreamSubscription? _schedulesSubscription;
+  StreamSubscription? _authStateSubscription;
 
   // Getters
   List<ScheduleEntity> get schedules => _schedules.toList();
@@ -69,21 +73,40 @@ class PatientController extends GetxController {
     // Set selected day to today's day
     _selectedDay.value = _getTodayDayName();
     
+    // Setup auth state listener to reload name when user changes
+    _setupAuthStateListener();
+    
     loadPatientName().then((_) {
       // Check if we need to prompt for name
       _checkAndPromptForName();
     });
     
-    loadSchedules();
+    // Load schedules filtered by today's day
+    filterByDay(_selectedDay.value);
     _setupRealtimeListener();
 
     // Listen to search changes
     searchController.addListener(() {
       _searchText.value = searchController.text;
       if (searchController.text.isEmpty) {
-        _filteredSchedules.value = _schedules;
+        // When search cleared, reload with current day filter
+        filterByDay(_selectedDay.value);
       } else {
         performSearch(searchController.text);
+      }
+    });
+  }
+  
+  // Setup auth state listener
+  void _setupAuthStateListener() {
+    _authStateSubscription?.cancel();
+    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        // User logged in or changed, reload name
+        loadPatientName();
+      } else {
+        // User logged out
+        _patientName.value = 'Pasien';
       }
     });
   }
@@ -271,6 +294,7 @@ class PatientController extends GetxController {
   @override
   void onClose() {
     _schedulesSubscription?.cancel();
+    _authStateSubscription?.cancel();
     searchController.dispose();
     super.onClose();
   }
@@ -389,17 +413,26 @@ class PatientController extends GetxController {
     }
   }
 
-  // Filter by day
-  void filterByDay(String day) {
-    _selectedDay.value = day;
-    
-    if (searchController.text.isNotEmpty) {
-      searchController.clear();
-    }
+  // Filter by day - REFETCH data with specific day calculation
+  Future<void> filterByDay(String day) async {
+    try {
+      _selectedDay.value = day;
+      _isLoading.value = true;
+      
+      if (searchController.text.isNotEmpty) {
+        searchController.clear();
+      }
 
-    _filteredSchedules.value = _schedules.where((schedule) {
-      return schedule.daysOfWeek.contains(day);
-    }).toList();
+      // Fetch fresh data with day-specific quota calculation
+      final result = await getSchedulesByDay(day);
+      _schedules.value = result;
+      _filteredSchedules.value = result;
+      
+    } catch (e) {
+      _showError('Gagal memuat jadwal: ${e.toString()}');
+    } finally {
+      _isLoading.value = false;
+    }
   }
 
   // Search schedules
@@ -423,7 +456,8 @@ class PatientController extends GetxController {
 
   // Refresh data
   Future<void> refreshData() async {
-    await loadSchedules();
+    // Refresh with current day filter
+    await filterByDay(_selectedDay.value);
   }
 
   // Show error message

@@ -4,20 +4,20 @@
       "collectionGroup": "queues",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "patient_id", "order": "ASC" },
-        { "fieldPath": "status", "order": "ASC" },
-        { "fieldPath": "created_at", "order": "DESC" },
-        { "fieldPath": "__name__", "order": "ASC" }
+        { "fieldPath": "patient_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "queues",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "schedule_id", "order": "ASC" },
-        { "fieldPath": "status", "order": "ASC" },
-        { "fieldPath": "queue_number", "order": "ASC" },
-        { "fieldPath": "__name__", "order": "ASC" }
+        { "fieldPath": "schedule_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "queue_number", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     }
   ],

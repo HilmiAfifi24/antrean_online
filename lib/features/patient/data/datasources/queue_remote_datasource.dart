@@ -32,12 +32,16 @@ class QueueRemoteDataSource {
         doctorId: data['doctor_id'] ?? '',
         doctorName: data['doctor_name'] ?? '',
         doctorSpecialization: data['doctor_specialization'] ?? '',
-        appointmentDate: (data['appointment_date'] as Timestamp).toDate(),
+        appointmentDate: data['appointment_date'] != null 
+            ? (data['appointment_date'] as Timestamp).toDate()
+            : DateTime.now(),
         appointmentTime: data['appointment_time'] ?? '',
         queueNumber: data['queue_number'] ?? 0,
         status: data['status'] ?? 'menunggu',
         complaint: data['complaint'] ?? '',
-        createdAt: (data['created_at'] as Timestamp).toDate(),
+        createdAt: data['created_at'] != null
+            ? (data['created_at'] as Timestamp).toDate()
+            : DateTime.now(),
       );
     } catch (e) {
       throw Exception('Failed to get active queue: $e');
@@ -160,12 +164,16 @@ class QueueRemoteDataSource {
         doctorId: data['doctor_id'] ?? '',
         doctorName: data['doctor_name'] ?? '',
         doctorSpecialization: data['doctor_specialization'] ?? '',
-        appointmentDate: (data['appointment_date'] as Timestamp).toDate(),
+        appointmentDate: data['appointment_date'] != null 
+            ? (data['appointment_date'] as Timestamp).toDate()
+            : DateTime.now(),
         appointmentTime: data['appointment_time'] ?? '',
         queueNumber: data['queue_number'] ?? 0,
         status: data['status'] ?? 'menunggu',
         complaint: data['complaint'] ?? '',
-        createdAt: (data['created_at'] as Timestamp).toDate(),
+        createdAt: data['created_at'] != null
+            ? (data['created_at'] as Timestamp).toDate()
+            : DateTime.now(),
       );
     });
   }

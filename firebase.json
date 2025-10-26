@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"antrean-online-e0060","appId":"1:96955088288:android:d9e1fd53902dbb1e2038c5","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"antrean-online-e0060","configurations":{"android":"1:96955088288:android:d9e1fd53902dbb1e2038c5","ios":"1:96955088288:ios:88bab40ff742a68c2038c5","macos":"1:96955088288:ios:88bab40ff742a68c2038c5","web":"1:96955088288:web:77f399d01344888a2038c5","windows":"1:96955088288:web:d48b34141cb6bbdf2038c5"}}}}}}
+{
+  "firestore": {
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "antrean-online-e0060",
+          "appId": "1:96955088288:android:d9e1fd53902dbb1e2038c5",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "antrean-online-e0060",
+          "configurations": {
+            "android": "1:96955088288:android:d9e1fd53902dbb1e2038c5",
+            "ios": "1:96955088288:ios:88bab40ff742a68c2038c5",
+            "macos": "1:96955088288:ios:88bab40ff742a68c2038c5",
+            "web": "1:96955088288:web:77f399d01344888a2038c5",
+            "windows": "1:96955088288:web:d48b34141cb6bbdf2038c5"
+          }
+        }
+      }
+    }
+  }
+}
