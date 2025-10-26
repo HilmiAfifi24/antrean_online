@@ -24,7 +24,8 @@ class PatientHomePage extends GetView<PatientController> {
           top: false,
           child: RefreshIndicator(
             onRefresh: () async {
-              await controller.loadSchedules();
+              await controller.loadPatientName();
+              await controller.refreshData();
             },
             color: const Color(0xFF2196F3),
             child: CustomScrollView(

@@ -15,22 +15,83 @@ class ScheduleRemoteDataSource {
           .where('is_active', isEqualTo: true)
           .get();
 
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return ScheduleEntity(
-          id: doc.id,
-          doctorId: data['doctor_id'] ?? '',
-          doctorName: data['doctor_name'] ?? '',
-          doctorSpecialization: data['doctor_specialization'] ?? '',
-          date: (data['date'] as Timestamp).toDate(),
-          startTime: _parseTimeOfDay(data['start_time']),
-          endTime: _parseTimeOfDay(data['end_time']),
-          daysOfWeek: List<String>.from(data['days_of_week'] ?? []),
-          maxPatients: data['max_patients'] ?? 0,
-          currentPatients: data['current_patients'] ?? 0,
-          isActive: data['is_active'] ?? false,
-        );
-      }).toList();
+      // Convert schedule documents to entities with dynamic patient count
+      final schedulesList = await Future.wait(
+        snapshot.docs.map((doc) async {
+          final data = doc.data();
+          
+          // Get the actual appointment date for this schedule
+          final scheduleDate = data['date'] != null
+              ? (data['date'] as Timestamp).toDate()
+              : DateTime.now();
+          final daysOfWeek = List<String>.from(data['days_of_week'] ?? []);
+          
+          // Calculate the next occurrence of this schedule based on current day
+          final now = DateTime.now();
+          DateTime appointmentDate = scheduleDate;
+          
+          // Find the nearest upcoming date that matches one of the daysOfWeek
+          final dayNameMap = {
+            'Senin': DateTime.monday,
+            'Selasa': DateTime.tuesday,
+            'Rabu': DateTime.wednesday,
+            'Kamis': DateTime.thursday,
+            'Jumat': DateTime.friday,
+            'Sabtu': DateTime.saturday,
+            'Minggu': DateTime.sunday,
+          };
+          
+          // Find the closest upcoming date
+          DateTime? closestDate;
+          for (final dayName in daysOfWeek) {
+            final targetWeekday = dayNameMap[dayName];
+            if (targetWeekday != null) {
+              int daysUntil = (targetWeekday - now.weekday + 7) % 7;
+              final candidate = DateTime(now.year, now.month, now.day).add(Duration(days: daysUntil));
+              if (closestDate == null || candidate.isBefore(closestDate)) {
+                closestDate = candidate;
+              }
+            }
+          }
+          
+          if (closestDate != null) {
+            appointmentDate = closestDate;
+          }
+          
+          // Normalize date to midnight for comparison
+          final normalizedDate = DateTime(
+            appointmentDate.year,
+            appointmentDate.month,
+            appointmentDate.day,
+          );
+          
+          // Count active queues for this schedule on the appointment date
+          final queueSnapshot = await firestore
+              .collection('queues')
+              .where('schedule_id', isEqualTo: doc.id)
+              .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+              .where('status', whereIn: ['menunggu', 'dipanggil', 'selesai'])
+              .get();
+          
+          final currentPatients = queueSnapshot.docs.length;
+          
+          return ScheduleEntity(
+            id: doc.id,
+            doctorId: data['doctor_id'] ?? '',
+            doctorName: data['doctor_name'] ?? '',
+            doctorSpecialization: data['doctor_specialization'] ?? '',
+            date: appointmentDate,
+            startTime: _parseTimeOfDay(data['start_time']),
+            endTime: _parseTimeOfDay(data['end_time']),
+            daysOfWeek: daysOfWeek,
+            maxPatients: data['max_patients'] ?? 0,
+            currentPatients: currentPatients, // Dynamic count based on actual queues
+            isActive: data['is_active'] ?? false,
+          );
+        }).toList(),
+      );
+
+      return schedulesList;
     } catch (e) {
       throw Exception('Failed to load schedules: $e');
     }
@@ -45,22 +106,81 @@ class ScheduleRemoteDataSource {
           .where('days_of_week', arrayContains: day)
           .get();
 
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return ScheduleEntity(
-          id: doc.id,
-          doctorId: data['doctor_id'] ?? '',
-          doctorName: data['doctor_name'] ?? '',
-          doctorSpecialization: data['doctor_specialization'] ?? '',
-          date: (data['date'] as Timestamp).toDate(),
-          startTime: _parseTimeOfDay(data['start_time']),
-          endTime: _parseTimeOfDay(data['end_time']),
-          daysOfWeek: List<String>.from(data['days_of_week'] ?? []),
-          maxPatients: data['max_patients'] ?? 0,
-          currentPatients: data['current_patients'] ?? 0,
-          isActive: data['is_active'] ?? false,
-        );
-      }).toList();
+      // Convert schedule documents to entities with dynamic patient count
+      final schedulesList = await Future.wait(
+        snapshot.docs.map((doc) async {
+          final data = doc.data();
+          
+          // Calculate the appointment date for the selected day
+          final now = DateTime.now();
+          final dayNameMap = {
+            'Senin': DateTime.monday,
+            'Selasa': DateTime.tuesday,
+            'Rabu': DateTime.wednesday,
+            'Kamis': DateTime.thursday,
+            'Jumat': DateTime.friday,
+            'Sabtu': DateTime.saturday,
+            'Minggu': DateTime.sunday,
+          };
+          
+          final targetWeekday = dayNameMap[day];
+          int daysUntil = 0;
+          if (targetWeekday != null) {
+            daysUntil = (targetWeekday - now.weekday + 7) % 7;
+            // If today matches the target day, use today (0 days)
+            // Otherwise use the calculated future date
+          }
+          
+          final appointmentDate = DateTime(now.year, now.month, now.day).add(Duration(days: daysUntil));
+          
+          // Normalize date to midnight for comparison
+          final normalizedDate = DateTime(
+            appointmentDate.year,
+            appointmentDate.month,
+            appointmentDate.day,
+          );
+          
+          // Debug logging
+          // print('[ScheduleRemoteDataSource] getSchedulesByDay($day):');
+          // print('  - Now: $now (weekday: ${now.weekday})');
+          // print('  - Target weekday: $targetWeekday');
+          // print('  - Days until: $daysUntil');
+          // print('  - Appointment date: $normalizedDate');
+          // print('  - Querying schedule_id: ${doc.id}');
+          
+          // Count active queues for this schedule on the appointment date
+          final queueSnapshot = await firestore
+              .collection('queues')
+              .where('schedule_id', isEqualTo: doc.id)
+              .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+              .where('status', whereIn: ['menunggu', 'dipanggil', 'selesai'])
+              .get();
+          
+          final currentPatients = queueSnapshot.docs.length;
+          
+          print('  - Found ${queueSnapshot.docs.length} queues');
+          for (var queueDoc in queueSnapshot.docs) {
+            final qData = queueDoc.data();
+            print('    * Queue: ${qData['patient_name']} - ${qData['appointment_date']}');
+          }
+          
+          return ScheduleEntity(
+            id: doc.id,
+            doctorId: data['doctor_id'] ?? '',
+            doctorName: data['doctor_name'] ?? '',
+            doctorSpecialization: data['doctor_specialization'] ?? '',
+            date: appointmentDate,
+            startTime: _parseTimeOfDay(data['start_time']),
+            endTime: _parseTimeOfDay(data['end_time']),
+            daysOfWeek: List<String>.from(data['days_of_week'] ?? []),
+            maxPatients: data['max_patients'] ?? 0,
+            currentPatients: currentPatients, // Dynamic count based on actual queues
+            isActive: data['is_active'] ?? false,
+          );
+        }).toList(),
+      );
+
+      return schedulesList;
     } catch (e) {
       throw Exception('Failed to load schedules by day: $e');
     }
@@ -74,25 +194,83 @@ class ScheduleRemoteDataSource {
           .where('is_active', isEqualTo: true)
           .get();
 
-      final schedules = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return ScheduleEntity(
-          id: doc.id,
-          doctorId: data['doctor_id'] ?? '',
-          doctorName: data['doctor_name'] ?? '',
-          doctorSpecialization: data['doctor_specialization'] ?? '',
-          date: (data['date'] as Timestamp).toDate(),
-          startTime: _parseTimeOfDay(data['start_time']),
-          endTime: _parseTimeOfDay(data['end_time']),
-          daysOfWeek: List<String>.from(data['days_of_week'] ?? []),
-          maxPatients: data['max_patients'] ?? 0,
-          currentPatients: data['current_patients'] ?? 0,
-          isActive: data['is_active'] ?? false,
-        );
-      }).toList();
+      final schedulesList = await Future.wait(
+        snapshot.docs.map((doc) async {
+          final data = doc.data();
+          
+          // Get the actual appointment date for this schedule
+          final scheduleDate = data['date'] != null
+              ? (data['date'] as Timestamp).toDate()
+              : DateTime.now();
+          final daysOfWeek = List<String>.from(data['days_of_week'] ?? []);
+          
+          // Calculate the next occurrence of this schedule based on current day
+          final now = DateTime.now();
+          DateTime appointmentDate = scheduleDate;
+          
+          // Find the nearest upcoming date that matches one of the daysOfWeek
+          final dayNameMap = {
+            'Senin': DateTime.monday,
+            'Selasa': DateTime.tuesday,
+            'Rabu': DateTime.wednesday,
+            'Kamis': DateTime.thursday,
+            'Jumat': DateTime.friday,
+            'Sabtu': DateTime.saturday,
+            'Minggu': DateTime.sunday,
+          };
+          
+          // Find the closest upcoming date
+          DateTime? closestDate;
+          for (final dayName in daysOfWeek) {
+            final targetWeekday = dayNameMap[dayName];
+            if (targetWeekday != null) {
+              int daysUntil = (targetWeekday - now.weekday + 7) % 7;
+              final candidate = DateTime(now.year, now.month, now.day).add(Duration(days: daysUntil));
+              if (closestDate == null || candidate.isBefore(closestDate)) {
+                closestDate = candidate;
+              }
+            }
+          }
+          
+          if (closestDate != null) {
+            appointmentDate = closestDate;
+          }
+          
+          // Normalize date to midnight for comparison
+          final normalizedDate = DateTime(
+            appointmentDate.year,
+            appointmentDate.month,
+            appointmentDate.day,
+          );
+          
+          // Count active queues for this schedule on the appointment date
+          final queueSnapshot = await firestore
+              .collection('queues')
+              .where('schedule_id', isEqualTo: doc.id)
+              .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+              .where('status', whereIn: ['menunggu', 'dipanggil', 'selesai'])
+              .get();
+          
+          final currentPatients = queueSnapshot.docs.length;
+          
+          return ScheduleEntity(
+            id: doc.id,
+            doctorId: data['doctor_id'] ?? '',
+            doctorName: data['doctor_name'] ?? '',
+            doctorSpecialization: data['doctor_specialization'] ?? '',
+            date: appointmentDate,
+            startTime: _parseTimeOfDay(data['start_time']),
+            endTime: _parseTimeOfDay(data['end_time']),
+            daysOfWeek: daysOfWeek,
+            maxPatients: data['max_patients'] ?? 0,
+            currentPatients: currentPatients, // Dynamic count based on actual queues
+            isActive: data['is_active'] ?? false,
+          );
+        }).toList(),
+      );
 
       // Filter by doctor name
-      return schedules.where((schedule) =>
+      return schedulesList.where((schedule) =>
         schedule.doctorName.toLowerCase().contains(query.toLowerCase())
       ).toList();
     } catch (e) {
