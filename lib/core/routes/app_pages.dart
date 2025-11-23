@@ -6,6 +6,10 @@ import 'package:antrean_online/features/admin/patient_view/patient_admin_binding
 import 'package:antrean_online/features/admin/schedule_view/schedule_admin_binding.dart';
 import 'package:antrean_online/features/admin/schedule_view/presentation/pages/schedule_admin_page.dart';
 import 'package:antrean_online/features/admin/home/home_admin_binding.dart';
+import 'package:antrean_online/features/admin/queue_view/queue_view_binding.dart';
+import 'package:antrean_online/features/admin/queue_view/presentation/pages/queue_view_page.dart';
+import 'package:antrean_online/features/admin/patient_list_view/presentation/bindings/patient_list_view_binding.dart';
+import 'package:antrean_online/features/admin/patient_list_view/presentation/pages/patient_list_view_page.dart';
 import 'package:antrean_online/features/auth/presentation/pages/admin_splash_page.dart';
 import 'package:antrean_online/features/auth/presentation/pages/doctor_splash_page.dart';
 import 'package:antrean_online/features/auth/presentation/pages/patient_splash_page.dart';
@@ -97,6 +101,16 @@ class AppPages {
       name: AppRoutes.adminPatients,
       page: () => const PatientAdminPage(),
       binding: PatientAdminBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.adminQueues,
+      page: () => const QueueViewPage(),
+      binding: QueueViewBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.adminPatientList,
+      page: () => const PatientListViewPage(),
+      binding: PatientListViewBinding(),
     ),
     GetPage(
       name: AppRoutes.doctorList,

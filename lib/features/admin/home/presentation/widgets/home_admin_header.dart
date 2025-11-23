@@ -1,6 +1,8 @@
+import 'package:antrean_online/core/routes/app_routes.dart';
 import 'package:antrean_online/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminHeader extends StatelessWidget {
   const AdminHeader({super.key});
@@ -111,8 +113,8 @@ class AdminHeader extends StatelessWidget {
     ).join(' ');
   }
 
-  void _showLogoutDialog() {
-    Get.dialog(
+  void _showLogoutDialog() async {
+    final confirmed = await Get.dialog<bool>(
       AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -132,7 +134,7 @@ class AdminHeader extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Get.back(result: false),
             child: const Text(
               "Batal",
               style: TextStyle(
@@ -142,10 +144,7 @@ class AdminHeader extends StatelessWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-              Get.back();
-              Get.find<AuthController>().logout();
-            },
+            onPressed: () => Get.back(result: true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               shape: RoundedRectangleBorder(
@@ -163,5 +162,10 @@ class AdminHeader extends StatelessWidget {
         ],
       ),
     );
+
+    if (confirmed == true) {
+      await FirebaseAuth.instance.signOut();
+      Get.offAllNamed(AppRoutes.roleSelection);
+    }
   }
 }

@@ -111,7 +111,7 @@ class DoctorController extends GetxController {
       _completedPatientsToday.value = completed;
       _waitingPatientsToday.value = waiting;
     } catch (e) {
-      // print('Error loading queue stats: $e');
+      // Error loading stats
     }
   }
 

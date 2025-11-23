@@ -1,4 +1,5 @@
 // pages/admin_home_page.dart
+import 'package:antrean_online/core/routes/app_routes.dart';
 import 'package:antrean_online/features/admin/home/presentation/widgets/dashboard_stats_card.dart';
 import 'package:antrean_online/features/admin/home/presentation/widgets/home_admin_header.dart';
 import 'package:flutter/material.dart';
@@ -60,7 +61,7 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
                           count: controller.totalPasien.value,
                           icon: Icons.people_outlined,
                           color: const Color(0xFF3B82F6),
-                          onTap: () => Get.toNamed("/admin/patients"),
+                          onTap: () => Get.toNamed(AppRoutes.adminPatientList),
                         );
                       }),
 
@@ -96,7 +97,7 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
                           count: controller.totalAntrean.value,
                           icon: Icons.queue_outlined,
                           color: const Color(0xFFF59E0B),
-                          onTap: () => Get.toNamed("/admin/queues"),
+                          onTap: () => Get.toNamed(AppRoutes.adminQueues),
                         );
                       }),
                     ],

@@ -140,14 +140,6 @@ class ScheduleRemoteDataSource {
             appointmentDate.day,
           );
           
-          // Debug logging
-          // print('[ScheduleRemoteDataSource] getSchedulesByDay($day):');
-          // print('  - Now: $now (weekday: ${now.weekday})');
-          // print('  - Target weekday: $targetWeekday');
-          // print('  - Days until: $daysUntil');
-          // print('  - Appointment date: $normalizedDate');
-          // print('  - Querying schedule_id: ${doc.id}');
-          
           // Count active queues for this schedule on the appointment date
           final queueSnapshot = await firestore
               .collection('queues')
@@ -157,12 +149,6 @@ class ScheduleRemoteDataSource {
               .get();
           
           final currentPatients = queueSnapshot.docs.length;
-          
-          print('  - Found ${queueSnapshot.docs.length} queues');
-          for (var queueDoc in queueSnapshot.docs) {
-            final qData = queueDoc.data();
-            print('    * Queue: ${qData['patient_name']} - ${qData['appointment_date']}');
-          }
           
           return ScheduleEntity(
             id: doc.id,
