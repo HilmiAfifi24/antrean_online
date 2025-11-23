@@ -20,10 +20,16 @@ class AuthController extends GetxController {
   var isLoading = false.obs;
   var currentUser = Rxn<UserEntity>();
 
-  Future<void> login(String email, String password) async {
+  Future<void> login(String email, String password, {String? expectedRole}) async {
 
     if(!email.endsWith("@pens.ac.id")) {
-      Get.snackbar("Error", "Email must be a valid pens.ac.id address");
+      Get.snackbar(
+        "Error", 
+        "Email harus menggunakan domain @pens.ac.id",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade100,
+        colorText: Colors.red.shade900,
+      );
       return;
     }
     try {
@@ -31,6 +37,21 @@ class AuthController extends GetxController {
       final user = await loginUser(email, password);
       currentUser.value = user;
 
+      // Validate role if expectedRole is provided
+      if (expectedRole != null && user.role != expectedRole) {
+        await registerUser.repository.logout(); // Logout immediately
+        Get.snackbar(
+          "Akses Ditolak",
+          "Anda tidak memiliki akses sebagai ${_getRoleDisplayName(expectedRole)}. Role Anda: ${_getRoleDisplayName(user.role)}",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.shade100,
+          colorText: Colors.red.shade900,
+          duration: const Duration(seconds: 4),
+        );
+        return;
+      }
+
+      // Navigate based on user role
       if (user.role == "admin") {
         Get.offAllNamed("/admin");
       } else if (user.role == "dokter") {
@@ -40,6 +61,20 @@ class AuthController extends GetxController {
       }
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // Helper method to get display name for role
+  String _getRoleDisplayName(String role) {
+    switch (role) {
+      case 'admin':
+        return 'Administrator';
+      case 'dokter':
+        return 'Dokter';
+      case 'pasien':
+        return 'Pasien';
+      default:
+        return role;
     }
   }
 

@@ -10,6 +10,8 @@ class AppRoutes {
   static const adminDoctors = '/admin/doctors';
   static const adminSchedules = '/admin/schedules';
   static const adminPatients = '/admin/patients';
+  static const adminQueues = '/admin/queues';
+  static const adminPatientList = '/admin/patient-list';
 
   // Dokter
   static const dokter = '/dokter';

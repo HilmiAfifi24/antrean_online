@@ -262,7 +262,7 @@ class ScheduleController extends GetxController {
 
       final schedule = ScheduleAdminEntity(
         id: '',
-        doctorId: _selectedDoctor.value!.id,
+        doctorId: _selectedDoctor.value!.userId,  // FIX: Use userId (Firebase Auth UID) instead of document ID
         doctorName: _selectedDoctor.value!.namaLengkap,
         doctorSpecialization: _selectedDoctor.value!.spesialisasi,
         date: _selectedDate.value!,
@@ -298,7 +298,7 @@ class ScheduleController extends GetxController {
       update();
 
       final schedule = _currentSchedule.value!.copyWith(
-        doctorId: _selectedDoctor.value!.id,
+        doctorId: _selectedDoctor.value!.userId,  // FIX: Use userId (Firebase Auth UID) instead of document ID
         doctorName: _selectedDoctor.value!.namaLengkap,
         doctorSpecialization: _selectedDoctor.value!.spesialisasi,
         date: _selectedDate.value!,

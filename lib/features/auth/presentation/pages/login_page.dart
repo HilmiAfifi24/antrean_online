@@ -160,9 +160,20 @@ class LoginPage extends StatelessWidget {
                                   emailController,
                                   passwordController,
                                 )) {
+                                  // Determine expected role from route parameter
+                                  String? expectedRole;
+                                  if (role == 'admin') {
+                                    expectedRole = 'admin';
+                                  } else if (role == 'doctor') {
+                                    expectedRole = 'dokter';
+                                  } else if (role == 'patient') {
+                                    expectedRole = 'pasien';
+                                  }
+                                  
                                   controller.login(
                                     emailController.text.trim(),
                                     passwordController.text.trim(),
+                                    expectedRole: expectedRole,
                                   );
                                 }
                               },
