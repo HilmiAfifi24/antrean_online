@@ -1,5 +1,6 @@
 import 'package:antrean_online/features/admin/schedule_view/domain/entities/schedule_admin_entity.dart';
 import 'package:antrean_online/features/admin/schedule_view/presentation/controllers/schedule_admin_controller.dart';
+import 'package:antrean_online/features/admin/notification/presentation/widgets/notification_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -205,9 +206,10 @@ class ScheduleCard extends StatelessWidget {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              schedule.daysOfWeek.join(', '),
+                              schedule.daysOfWeek.first,
                               style: TextStyle(
                                 fontSize: 14,
+                                fontWeight: FontWeight.w500,
                                 color: schedule.isActive 
                                     ? const Color(0xFF64748B) 
                                     : const Color(0xFF94A3B8),
@@ -301,6 +303,13 @@ class ScheduleCard extends StatelessWidget {
                 ),
               ],
             ),
+            
+            // Notification Buttons (only show if schedule is active)
+            if (schedule.isActive)
+              NotificationButtons(
+                scheduleId: schedule.id,
+                doctorName: schedule.doctorName,
+              ),
           ],
         ),
       ),

@@ -37,6 +37,14 @@
       ]
     },
     {
+      "collectionGroup": "queues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schedule_id", "order": "ASCENDING" },
+        { "fieldPath": "appointment_date", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [

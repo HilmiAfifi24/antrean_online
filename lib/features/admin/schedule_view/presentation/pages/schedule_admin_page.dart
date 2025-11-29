@@ -77,7 +77,7 @@ class SchedulesPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${controller.filteredSchedules.length} Jadwal',
+                              '${controller.getExpandedSchedules().length} Jadwal',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -129,14 +129,19 @@ class SchedulesPage extends StatelessWidget {
                         ? const EmptySchedulesWidget()
                         : RefreshIndicator(
                             onRefresh: controller.loadSchedules,
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: controller.filteredSchedules.length,
-                              itemBuilder: (context, index) {
-                                final schedule = controller.filteredSchedules[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: ScheduleCard(schedule: schedule),
+                            child: Builder(
+                              builder: (context) {
+                                final expandedSchedules = controller.getExpandedSchedules();
+                                return ListView.builder(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: expandedSchedules.length,
+                                  itemBuilder: (context, index) {
+                                    final schedule = expandedSchedules[index];
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 12),
+                                      child: ScheduleCard(schedule: schedule),
+                                    );
+                                  },
                                 );
                               },
                             ),

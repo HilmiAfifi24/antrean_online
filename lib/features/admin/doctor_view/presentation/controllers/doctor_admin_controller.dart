@@ -3,6 +3,7 @@ import 'package:antrean_online/features/admin/doctor_view/domain/entities/doctor
 import 'package:antrean_online/features/admin/doctor_view/domain/repositories/doctor_admin_repository.dart';
 import 'package:antrean_online/features/admin/doctor_view/domain/usecases/get_spesializations.dart';
 import 'package:antrean_online/features/admin/doctor_view/presentation/widgets/add_edit_doctor_dialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../domain/usecases/get_all_doctors.dart';
@@ -92,7 +93,7 @@ class DoctorController extends GetxController {
     specializationController.dispose();
     phoneController.dispose();
     emailController.dispose();
-    passwordController.dispose(); // TAMBAHKAN INI
+    passwordController.dispose();
     super.onClose();
   }
 
@@ -239,9 +240,10 @@ class DoctorController extends GetxController {
       await loadDoctors(); // Refresh list
       Get.back(); // Close form dialog
 
-      _showSuccess('Dokter berhasil ditambahkan');
+      _showSuccess('Dokter berhasil ditambahkan ke sistem');
     } catch (e) {
-      _showError('Gagal menambahkan dokter: ${e.toString()}');
+      final errorMsg = e.toString().replaceAll('Exception: ', '');
+      _showError(errorMsg);
     } finally {
       _isLoading.value = false;
       update();
@@ -321,12 +323,165 @@ class DoctorController extends GetxController {
 
   // Delete doctor
   Future<void> removeDoctor(String id, String name) async {
+    // Hitung jumlah jadwal yang terkait
+    int scheduleCount = 0;
+    int queueCount = 0;
+    String? doctorUserId;
+    
+    try {
+      final firestore = Get.find<FirebaseFirestore>();
+      
+      // Dapatkan userId dokter terlebih dahulu
+      final doctorDoc = await firestore.collection('doctors').doc(id).get();
+      if (doctorDoc.exists) {
+        doctorUserId = doctorDoc.data()?['user_id'] as String?;
+      }
+      
+      // Hitung jadwal berdasarkan userId (bukan document id)
+      if (doctorUserId != null && doctorUserId.isNotEmpty) {
+        final schedulesSnapshot = await firestore
+            .collection('schedules')
+            .where('doctor_id', isEqualTo: doctorUserId)
+            .get();
+        scheduleCount = schedulesSnapshot.docs.length;
+        
+        // Hitung antrean
+        for (final scheduleDoc in schedulesSnapshot.docs) {
+          final queuesSnapshot = await firestore
+              .collection('queues')
+              .where('schedule_id', isEqualTo: scheduleDoc.id)
+              .get();
+          queueCount += queuesSnapshot.docs.length;
+        }
+        
+        // Hitung antrean langsung terkait dokter userId
+        final doctorQueuesSnapshot = await firestore
+            .collection('queues')
+            .where('doctor_id', isEqualTo: doctorUserId)
+            .get();
+        queueCount += doctorQueuesSnapshot.docs.length;
+      }
+    } catch (e) {
+      // Lanjutkan dengan nilai default jika gagal menghitung
+    }
+
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
-        title: const Text('Konfirmasi Hapus'),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus dokter $name?\n\n'
-          'PERHATIAN: Tindakan ini akan menghapus data secara permanen dan tidak dapat dibatalkan.',
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFEF4444),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Hapus Data Dokter?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Anda akan menghapus data dokter:',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.person, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Dr. $name',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFECACA)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Color(0xFFEF4444), size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'PERHATIAN!',
+                        style: TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Data berikut juga akan dihapus:',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  _buildDeleteInfoRow(Icons.calendar_today, '$scheduleCount jadwal praktek'),
+                  const SizedBox(height: 4),
+                  _buildDeleteInfoRow(Icons.people, '$queueCount data antrean'),
+                  const SizedBox(height: 4),
+                  _buildDeleteInfoRow(Icons.account_circle, 'Akun login dokter'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tindakan ini tidak dapat dibatalkan!',
+                    style: TextStyle(
+                      color: Colors.red[700],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -337,6 +492,9 @@ class DoctorController extends GetxController {
             onPressed: () => Get.back(result: true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Hapus Permanen', style: TextStyle(color: Colors.white)),
           ),
@@ -349,14 +507,30 @@ class DoctorController extends GetxController {
     try {
       _isLoading.value = true;
       final doctorRepo = Get.find<DoctorAdminRepository>();
-      await doctorRepo.permanentlyDeleteDoctor(id);  // Implement this method in repository
+      await doctorRepo.permanentlyDeleteDoctor(id);
       await loadDoctors(); // Refresh list
-      _showSuccess('Dokter berhasil dihapus secara permanen');
+      _showSuccess('Dokter beserta $scheduleCount jadwal dan $queueCount antrean berhasil dihapus');
     } catch (e) {
       _showError('Gagal menghapus dokter: ${e.toString()}');
     } finally {
       _isLoading.value = false;
     }
+  }
+
+  Widget _buildDeleteInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[600]),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(
+            color: Colors.grey[700],
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
   }
 
   // Load doctor data for editing

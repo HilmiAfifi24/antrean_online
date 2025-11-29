@@ -1,5 +1,5 @@
 import 'package:antrean_online/features/admin/schedule_view/domain/entities/schedule_admin_entity.dart';
-import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_all_schedules.dart';
+import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_all_schedules.dart' as schedule_admin_usecases;
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_schedule_by_id.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/add_schedule.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/update_schedule.dart';
@@ -16,7 +16,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 
 class ScheduleController extends GetxController {
-  final GetAllSchedules getAllSchedules;
+  final schedule_admin_usecases.GetAllSchedules getAllSchedules;
   final GetScheduleById getScheduleById;
   final AddSchedule addSchedule;
   final UpdateSchedule updateSchedule;
@@ -152,6 +152,9 @@ class ScheduleController extends GetxController {
       _isLoading.value = true;
       update();
       final result = await getAllSchedules(includeInactive: _includeInactive.value);
+      
+      // Don't expand here - let the UI handle display per day
+      // But datasource already calculates currentPatients correctly
       _schedules.value = result;
       _filteredSchedules.value = result;
       update();
@@ -160,6 +163,47 @@ class ScheduleController extends GetxController {
     } finally {
       _isLoading.value = false;
       update();
+    }
+  }
+  
+  // Get expanded schedules for display (separate card per day)
+  List<ScheduleAdminEntity> getExpandedSchedules() {
+    final expandedSchedules = <ScheduleAdminEntity>[];
+    for (final schedule in _filteredSchedules) {
+      if (schedule.daysOfWeek.length == 1) {
+        // Already single day, add as is
+        expandedSchedules.add(schedule);
+      } else {
+        // Multiple days, split into separate schedules for display only
+        for (final day in schedule.daysOfWeek) {
+          // Calculate patient count for this specific day
+          final today = DateTime.now();
+          final todayDayName = _getDayName(today.weekday);
+          final isToday = day == todayDayName;
+          
+          expandedSchedules.add(
+            schedule.copyWith(
+              daysOfWeek: [day],
+              currentPatients: isToday ? schedule.currentPatients : 0,
+            ),
+          );
+        }
+      }
+    }
+    return expandedSchedules;
+  }
+  
+  // Helper method to convert weekday number to Indonesian day name
+  String _getDayName(int weekday) {
+    switch (weekday) {
+      case 1: return 'Senin';
+      case 2: return 'Selasa';
+      case 3: return 'Rabu';
+      case 4: return 'Kamis';
+      case 5: return 'Jumat';
+      case 6: return 'Sabtu';
+      case 7: return 'Minggu';
+      default: return '';
     }
   }
 
@@ -323,16 +367,216 @@ class ScheduleController extends GetxController {
     }
   }
 
-  // Delete schedule
+  // Delete schedule with confirmation
   Future<void> deleteScheduleById(String id) async {
     try {
+      // Hitung jumlah antrean yang terkait dengan jadwal ini
+      int queueCount = 0;
+      String? doctorName;
+      String? scheduleInfo;
+      
+      final firestore = Get.find<FirebaseFirestore>();
+      final scheduleDoc = await firestore.collection('schedules').doc(id).get();
+      
+      if (scheduleDoc.exists) {
+        final scheduleData = scheduleDoc.data();
+        doctorName = scheduleData?['doctor_name'] as String?;
+        final startTime = scheduleData?['start_time'] as String?;
+        final endTime = scheduleData?['end_time'] as String?;
+        final daysOfWeek = scheduleData?['days_of_week'] as List?;
+        scheduleInfo = '${daysOfWeek?.join(', ')} ($startTime - $endTime)';
+        
+        // Hitung antrean
+        final queuesSnapshot = await firestore
+            .collection('queues')
+            .where('schedule_id', isEqualTo: id)
+            .get();
+        queueCount = queuesSnapshot.docs.length;
+      }
+
+      // Tampilkan dialog konfirmasi
+      final confirmed = await Get.dialog<bool>(
+        AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Hapus Jadwal?',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Anda akan menghapus jadwal:',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.person, color: Color(0xFF3B82F6), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Dr. ${doctorName ?? 'Unknown'}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today, color: Color(0xFF64748B), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            scheduleInfo ?? 'Unknown',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (queueCount > 0) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Color(0xFFEF4444), size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'PERHATIAN!',
+                            style: TextStyle(
+                              color: Color(0xFFEF4444),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.people, size: 16, color: Color(0xFF64748B)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$queueCount data antrean akan dihapus',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tindakan ini tidak dapat dibatalkan!',
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Hapus Permanen', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
       _isLoading.value = true;
       update();
 
-      await deleteSchedule(id);
+      // Hapus semua antrean terkait jadwal ini
+      if (queueCount > 0) {
+        final queuesSnapshot = await firestore
+            .collection('queues')
+            .where('schedule_id', isEqualTo: id)
+            .get();
+        
+        for (final queueDoc in queuesSnapshot.docs) {
+          await queueDoc.reference.delete();
+        }
+      }
+
+      // Hapus jadwal
+      await firestore.collection('schedules').doc(id).delete();
       await loadSchedules();
 
-      _showSuccess('Jadwal berhasil dihapus');
+      _showSuccess('Jadwal beserta $queueCount antrean berhasil dihapus');
     } catch (e) {
       _showError('Gagal menghapus jadwal: ${e.toString()}');
     } finally {

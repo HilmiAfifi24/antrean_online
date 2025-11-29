@@ -29,6 +29,8 @@ class AuthController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red.shade100,
         colorText: Colors.red.shade900,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
+        duration: const Duration(seconds: 4),
       );
       return;
     }
@@ -46,10 +48,22 @@ class AuthController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.red.shade100,
           colorText: Colors.red.shade900,
+          icon: const Icon(Icons.block, color: Colors.white),
           duration: const Duration(seconds: 4),
         );
         return;
       }
+
+      // Show success message
+      Get.snackbar(
+        "Berhasil",
+        "Login berhasil! Selamat datang",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.shade100,
+        colorText: Colors.green.shade900,
+        icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+        duration: const Duration(seconds: 2),
+      );
 
       // Navigate based on user role
       if (user.role == "admin") {
@@ -59,6 +73,21 @@ class AuthController extends GetxController {
       } else {
         Get.offAllNamed("/pasien");
       }
+    } catch (e) {
+      // Extract error message
+      String errorMessage = e.toString().replaceAll('Exception: ', '');
+      
+      Get.snackbar(
+        "Login Gagal",
+        errorMessage,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
+        duration: const Duration(seconds: 5),
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -78,15 +107,23 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> register(String email, String password, String role, String name) async {
+  Future<void> register(String email, String password, String role, String name, String phone) async {
 
     if (!email.endsWith("@pens.ac.id")) {
-      Get.snackbar("Error", "Email must be a valid pens.ac.id address");
+      Get.snackbar(
+        "Error", 
+        "Email harus menggunakan domain @pens.ac.id",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade100,
+        colorText: Colors.red.shade900,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
+        duration: const Duration(seconds: 4),
+      );
       return;
     }
     try {
       isLoading.value = true;
-      final user = await registerUser(email, password, role, name);
+      final user = await registerUser(email, password, role, name, phone);
       currentUser.value = user;
       
       Get.snackbar(
@@ -95,9 +132,26 @@ class AuthController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green.shade100,
         colorText: Colors.green.shade900,
+        icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+        duration: const Duration(seconds: 3),
       );
       
       Get.offAllNamed("/login");
+    } catch (e) {
+      // Extract error message
+      String errorMessage = e.toString().replaceAll('Exception: ', '');
+      
+      Get.snackbar(
+        "Registrasi Gagal",
+        errorMessage,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
+        duration: const Duration(seconds: 5),
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
     } finally {
       isLoading.value = false;
     }
