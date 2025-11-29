@@ -20,19 +20,86 @@ class ScheduleAdminRemoteDatasource {
     }
 
     final snapshot = await query.get();
-    List<ScheduleAdminModel> schedules = snapshot.docs.map((doc) => ScheduleAdminModel.fromFirestore(doc)).toList();
+    List<ScheduleAdminModel> schedules = [];
+    
+    // Process each schedule and count current patients from queues
+    for (final doc in snapshot.docs) {
+      final schedule = ScheduleAdminModel.fromFirestore(doc);
+      
+      // Count patients from queues collection for today only if today matches schedule days
+      final today = DateTime.now();
+      final todayDayName = _getDayName(today.weekday);
+      
+      int currentPatients = 0;
+      
+      // Only count if today is one of the schedule's days
+      if (schedule.daysOfWeek.contains(todayDayName)) {
+        final startOfDay = DateTime(today.year, today.month, today.day);
+        final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59);
+        
+        final queuesSnapshot = await firestore
+            .collection('queues')
+            .where('schedule_id', isEqualTo: doc.id)
+            .where('appointment_date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+            .where('appointment_date', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
+            .get();
+        
+        currentPatients = queuesSnapshot.docs.length;
+      }
+      
+      // Create updated schedule with actual patient count
+      schedules.add(schedule.copyWith(currentPatients: currentPatients) as ScheduleAdminModel);
+    }
     
     // Sort in memory to avoid composite index requirement
     schedules.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
     return schedules;
   }
+  
+  /// Helper method to convert weekday number to Indonesian day name
+  String _getDayName(int weekday) {
+    switch (weekday) {
+      case 1: return 'Senin';
+      case 2: return 'Selasa';
+      case 3: return 'Rabu';
+      case 4: return 'Kamis';
+      case 5: return 'Jumat';
+      case 6: return 'Sabtu';
+      case 7: return 'Minggu';
+      default: return '';
+    }
+  }
 
   /// Get schedule by ID
   Future<ScheduleAdminModel?> getScheduleById(String id) async {
     final doc = await firestore.collection('schedules').doc(id).get();
     if (!doc.exists) return null;
-    return ScheduleAdminModel.fromFirestore(doc);
+    
+    final schedule = ScheduleAdminModel.fromFirestore(doc);
+    
+    // Count patients from queues collection for today only if today matches schedule days
+    final today = DateTime.now();
+    final todayDayName = _getDayName(today.weekday);
+    
+    int currentPatients = 0;
+    
+    // Only count if today is one of the schedule's days
+    if (schedule.daysOfWeek.contains(todayDayName)) {
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59);
+      
+      final queuesSnapshot = await firestore
+          .collection('queues')
+          .where('schedule_id', isEqualTo: id)
+          .where('appointment_date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('appointment_date', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
+          .get();
+      
+      currentPatients = queuesSnapshot.docs.length;
+    }
+    
+    return schedule.copyWith(currentPatients: currentPatients) as ScheduleAdminModel;
   }
 
   /// Add new schedule
@@ -112,7 +179,34 @@ class ScheduleAdminRemoteDatasource {
         .where('is_active', isEqualTo: true)
         .get();
 
-    List<ScheduleAdminModel> schedules = snapshot.docs.map((doc) => ScheduleAdminModel.fromFirestore(doc)).toList();
+    List<ScheduleAdminModel> schedules = [];
+    
+    // Process each schedule and count current patients from queues
+    final today = DateTime.now();
+    final todayDayName = _getDayName(today.weekday);
+    
+    for (final doc in snapshot.docs) {
+      final schedule = ScheduleAdminModel.fromFirestore(doc);
+      
+      int currentPatients = 0;
+      
+      // Only count if today is one of the schedule's days
+      if (schedule.daysOfWeek.contains(todayDayName)) {
+        final startOfDay = DateTime(today.year, today.month, today.day);
+        final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59);
+        
+        final queuesSnapshot = await firestore
+            .collection('queues')
+            .where('schedule_id', isEqualTo: doc.id)
+            .where('appointment_date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+            .where('appointment_date', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
+            .get();
+        
+        currentPatients = queuesSnapshot.docs.length;
+      }
+      
+      schedules.add(schedule.copyWith(currentPatients: currentPatients) as ScheduleAdminModel);
+    }
     
     // Sort in memory to avoid composite index requirement
     schedules.sort((a, b) => b.createdAt.compareTo(a.createdAt));

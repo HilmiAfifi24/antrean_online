@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:antrean_online/features/admin/schedule_view/data/datasources/schedule_admin_remote_datsource.dart';
 import 'package:antrean_online/features/admin/schedule_view/data/repositories/schedule_admin_repository_impl.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/repositories/schedule_admin_repository.dart';
-import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_all_schedules.dart';
+import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_all_schedules.dart' as schedule_admin_usecases;
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_schedule_by_id.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/add_schedule.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/update_schedule.dart';
@@ -17,6 +17,7 @@ import 'package:antrean_online/features/admin/doctor_view/domain/usecases/get_al
 import 'package:antrean_online/features/admin/doctor_view/data/datasources/doctor_admin_remote_datasource.dart';
 import 'package:antrean_online/features/admin/doctor_view/data/repositories/doctor_admin_repository_impl.dart';
 import 'package:antrean_online/features/admin/doctor_view/domain/repositories/doctor_admin_repository.dart';
+import 'package:antrean_online/features/admin/notification/presentation/bindings/notification_binding.dart';
 
 class ScheduleBinding extends Bindings {
   @override
@@ -64,7 +65,7 @@ class ScheduleBinding extends Bindings {
     }
 
     // Use Cases Layer - Schedule
-    Get.put(GetAllSchedules(Get.find<ScheduleAdminRepository>()), permanent: true);
+    Get.put(schedule_admin_usecases.GetAllSchedules(Get.find<ScheduleAdminRepository>()), permanent: true);
     Get.put(GetScheduleById(Get.find<ScheduleAdminRepository>()), permanent: true);
     Get.put(AddSchedule(Get.find<ScheduleAdminRepository>()), permanent: true);
     Get.put(UpdateSchedule(Get.find<ScheduleAdminRepository>()), permanent: true);
@@ -93,5 +94,8 @@ class ScheduleBinding extends Bindings {
       ),
       permanent: true,
     );
+    
+    // Initialize Notification Binding
+    NotificationBinding().dependencies();
   }
 }

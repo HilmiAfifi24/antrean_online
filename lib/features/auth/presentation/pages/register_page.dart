@@ -16,6 +16,7 @@ class RegisterPage extends StatelessWidget {
     final passwordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
     final nameController = TextEditingController();
+    final phoneController = TextEditingController();
     final role = "pasien".obs;
 
     return Scaffold(
@@ -43,6 +44,14 @@ class RegisterPage extends StatelessWidget {
                       controller: nameController,
                       prefixIcon: Icons.person,
                       keyboardType: TextInputType.name,
+                    ),
+                    
+                    CustomInputField(
+                      label: "Nomor Telepon",
+                      hint: "Contoh: 081234567890",
+                      controller: phoneController,
+                      prefixIcon: Icons.phone,
+                      keyboardType: TextInputType.phone,
                     ),
                     
                     CustomInputField(
@@ -90,12 +99,13 @@ class RegisterPage extends StatelessWidget {
                         isLoading: controller.isLoading.value,
                         onPressed: () {
                           if (_validateForm(emailController, passwordController, 
-                              confirmPasswordController, nameController)) {
+                              confirmPasswordController, nameController, phoneController)) {
                             controller.register(
                               emailController.text.trim(),
                               passwordController.text.trim(),
                               role.value,
                               nameController.text.trim(),
+                              phoneController.text.trim(),
                             );
                           }
                         },
@@ -137,9 +147,18 @@ class RegisterPage extends StatelessWidget {
     TextEditingController password,
     TextEditingController confirmPassword,
     TextEditingController name,
+    TextEditingController phone,
   ) {
     if (name.text.trim().isEmpty) {
       Get.snackbar("Error", "Nama tidak boleh kosong");
+      return false;
+    }
+    if (phone.text.trim().isEmpty) {
+      Get.snackbar("Error", "Nomor telepon tidak boleh kosong");
+      return false;
+    }
+    if (!RegExp(r'^[0-9]{10,13}$').hasMatch(phone.text.trim())) {
+      Get.snackbar("Error", "Nomor telepon harus 10-13 digit angka");
       return false;
     }
     if (email.text.trim().isEmpty || !email.text.contains('@')) {
