@@ -6,16 +6,19 @@ import 'dart:async';
 import '../../domain/entities/schedule_entity.dart';
 import '../../domain/usecases/get_all_schedules.dart';
 import '../../domain/usecases/get_schedules_by_day.dart';
+import '../../domain/usecases/get_schedules_by_day_stream.dart';
 import '../../domain/usecases/search_schedules.dart';
 
 class PatientController extends GetxController {
   final GetAllSchedules getAllSchedules;
   final GetSchedulesByDay getSchedulesByDay;
+  final GetSchedulesByDayStream getSchedulesByDayStream;
   final SearchSchedules searchSchedules;
 
   PatientController({
     required this.getAllSchedules,
     required this.getSchedulesByDay,
+    required this.getSchedulesByDayStream,
     required this.searchSchedules,
   });
 
@@ -337,59 +340,28 @@ class PatientController extends GetxController {
     }
   }
 
-  // Setup realtime listener for schedules
+  // Setup realtime listener for schedules with queue updates
   void _setupRealtimeListener() {
     _schedulesSubscription?.cancel();
 
-    _schedulesSubscription = FirebaseFirestore.instance
-        .collection('schedules')
-        .where('is_active', isEqualTo: true)
-        .snapshots()
-        .listen((snapshot) {
-      try {
-        final schedules = snapshot.docs.map((doc) {
-          final data = doc.data();
-          return ScheduleEntity(
-            id: doc.id,
-            doctorId: data['doctor_id'] ?? '',
-            doctorName: data['doctor_name'] ?? '',
-            doctorSpecialization: data['doctor_specialization'] ?? '',
-            date: (data['date'] as Timestamp).toDate(),
-            startTime: _parseTimeOfDay(data['start_time']),
-            endTime: _parseTimeOfDay(data['end_time']),
-            daysOfWeek: List<String>.from(data['days_of_week'] ?? []),
-            maxPatients: data['max_patients'] ?? 0,
-            currentPatients: data['current_patients'] ?? 0,
-            isActive: data['is_active'] ?? false,
-          );
-        }).toList();
-
-        _schedules.value = schedules;
-        
-        // Apply current filter
-        if (searchController.text.isNotEmpty) {
-          performSearch(searchController.text);
-        } else if (_selectedDay.value.isNotEmpty) {
-          filterByDay(_selectedDay.value);
-        } else {
-          _filteredSchedules.value = schedules;
-        }
-      } catch (e) {
-        _showError('Error loading schedules: $e');
-      }
-    });
-  }
-
-  TimeOfDay _parseTimeOfDay(String? timeString) {
-    if (timeString == null || timeString.isEmpty) {
-      return const TimeOfDay(hour: 0, minute: 0);
+    // Listen to schedules stream (filtered by selected day)
+    if (_selectedDay.value.isNotEmpty) {
+      _schedulesSubscription = getSchedulesByDayStream(_selectedDay.value).listen(
+        (schedules) {
+          _schedules.value = schedules;
+          
+          // Apply current filter
+          if (searchController.text.isNotEmpty) {
+            performSearch(searchController.text);
+          } else {
+            _filteredSchedules.value = schedules;
+          }
+        },
+        onError: (e) {
+          _showError('Error loading schedules: $e');
+        },
+      );
     }
-    
-    final parts = timeString.split(':');
-    return TimeOfDay(
-      hour: int.parse(parts[0]),
-      minute: int.parse(parts[1]),
-    );
   }
 
   // Load all schedules
@@ -413,7 +385,7 @@ class PatientController extends GetxController {
     }
   }
 
-  // Filter by day - REFETCH data with specific day calculation
+  // Filter by day - Setup stream listener for real-time updates
   Future<void> filterByDay(String day) async {
     try {
       _selectedDay.value = day;
@@ -423,14 +395,25 @@ class PatientController extends GetxController {
         searchController.clear();
       }
 
-      // Fetch fresh data with day-specific quota calculation
-      final result = await getSchedulesByDay(day);
-      _schedules.value = result;
-      _filteredSchedules.value = result;
+      // Cancel existing subscription and setup new stream listener
+      _schedulesSubscription?.cancel();
+      
+      // Listen to schedules stream (filtered by selected day)
+      // This stream automatically updates when queues change
+      _schedulesSubscription = getSchedulesByDayStream(day).listen(
+        (schedules) {
+          _schedules.value = schedules;
+          _filteredSchedules.value = schedules;
+          _isLoading.value = false;
+        },
+        onError: (e) {
+          _showError('Error loading schedules: $e');
+          _isLoading.value = false;
+        },
+      );
       
     } catch (e) {
       _showError('Gagal memuat jadwal: ${e.toString()}');
-    } finally {
       _isLoading.value = false;
     }
   }

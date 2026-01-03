@@ -36,6 +36,7 @@ import 'package:antrean_online/features/patient/patient_binding.dart';
 import 'package:antrean_online/features/patient/doctor_list_binding.dart';
 import 'package:antrean_online/features/patient/presentation/bindings/queue_binding.dart';
 import 'package:antrean_online/features/doctor/doctor_binding.dart' as doctor_binding;
+import 'package:antrean_online/features/auth/presentation/pages/forgot_password_page.dart';
 
 class AppPages {
   static const initial = AppRoutes.roleSelection;
@@ -72,11 +73,20 @@ class AppPages {
       binding: AuthBinding(),
     ),
     GetPage(
+      name: '/forgot-password',
+      page: () => const ForgotPasswordPage(),
+      binding: AuthBinding(),
+    ),
+    GetPage(
       name: AppRoutes.admin,
       page: () => const AdminHomePage(),
       binding: AdminBinding(),
     ),
-    GetPage(name: AppRoutes.dokter, page: () => const DokterDashboard()),
+    GetPage(
+      name: AppRoutes.dokter,
+      page: () => const DokterDashboard(),
+      binding: doctor_binding.DoctorBinding(),
+    ),
     GetPage(
       name: AppRoutes.doctorHome,
       page: () => const DoctorHomePage(),

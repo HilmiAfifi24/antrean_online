@@ -101,4 +101,30 @@ class AuthRemoteDataSource {
   Future<void> logout() async {
     await firebaseAuth.signOut();
   }
+
+  Future<void> resetPassword(String email) async {
+    try {
+      if (!email.endsWith('@pens.ac.id')) {
+        throw Exception('Email harus menggunakan domain @pens.ac.id');
+      }
+
+      await firebaseAuth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          throw Exception('Email tidak terdaftar dalam sistem');
+        case 'invalid-email':
+          throw Exception('Format email tidak valid');
+        case 'too-many-requests':
+          throw Exception('Terlalu banyak percobaan. Silakan coba lagi nanti');
+        default:
+          throw Exception('Gagal mengirim email reset password: ${e.message ?? "Terjadi kesalahan"}');
+      }
+    } catch (e) {
+      if (e.toString().contains('@pens.ac.id')) {
+        rethrow;
+      }
+      throw Exception('Gagal mengirim email reset password: ${e.toString()}');
+    }
+  }
 }

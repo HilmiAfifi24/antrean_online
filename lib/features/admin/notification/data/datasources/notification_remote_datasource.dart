@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/notification_entity.dart';
@@ -28,44 +29,59 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
 
   @override
   Future<void> sendWhatsAppMessage(String phone, String message) async {
-    final url = Uri.parse('$fonnteBaseUrl/send');
-    
-    // Ensure phone number has proper format (without +)
-    String formattedPhone = phone.replaceAll('+', '').replaceAll('-', '').replaceAll(' ', '');
-    if (!formattedPhone.startsWith('62')) {
-      if (formattedPhone.startsWith('0')) {
-        formattedPhone = '62${formattedPhone.substring(1)}';
-      } else {
-        formattedPhone = '62$formattedPhone';
+    try {
+      final url = Uri.parse('$fonnteBaseUrl/send');
+      
+      // Ensure phone number has proper format (without +)
+      String formattedPhone = phone.replaceAll('+', '').replaceAll('-', '').replaceAll(' ', '');
+      if (!formattedPhone.startsWith('62')) {
+        if (formattedPhone.startsWith('0')) {
+          formattedPhone = '62${formattedPhone.substring(1)}';
+        } else {
+          formattedPhone = '62$formattedPhone';
+        }
       }
-    }
 
-    // print('Sending WhatsApp to: $formattedPhone');
-    
-    final response = await client.post(
-      url,
-      headers: {
-        'Authorization': fonnteApiToken,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'target': formattedPhone,
-        'message': message,
-        'countryCode': '62',
-      }),
-    );
+      // print('Sending WhatsApp to: $formattedPhone');
+      
+      final response = await client.post(
+        url,
+        headers: {
+          'Authorization': fonnteApiToken,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'target': formattedPhone,
+          'message': message,
+          'countryCode': '62',
+        }),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Request timeout: Server tidak merespons dalam 30 detik');
+        },
+      );
 
-    // print('Fonnte Response: ${response.statusCode} - ${response.body}');
+      // print('Fonnte Response: ${response.statusCode} - ${response.body}');
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to send WhatsApp message: ${response.body}');
-    }
+      if (response.statusCode != 200) {
+        throw Exception('Failed to send WhatsApp message: ${response.body}');
+      }
 
-    final responseData = jsonDecode(response.body);
-    final fonnteResponse = FonnteResponseModel.fromJson(responseData);
-    
-    if (!fonnteResponse.status) {
-      throw Exception('Fonnte API error: ${fonnteResponse.message}');
+      final responseData = jsonDecode(response.body);
+      final fonnteResponse = FonnteResponseModel.fromJson(responseData);
+      
+      if (!fonnteResponse.status) {
+        throw Exception('Fonnte API error: ${fonnteResponse.message}');
+      }
+    } on SocketException catch (e) {
+      throw Exception('Tidak dapat terhubung ke server Fonnte: ${e.message}');
+    } on HandshakeException catch (e) {
+      throw Exception('SSL Handshake gagal: ${e.message}. Periksa koneksi internet atau gunakan jaringan berbeda');
+    } on http.ClientException catch (e) {
+      throw Exception('HTTP Client error: ${e.message}');
+    } catch (e) {
+      rethrow;
     }
   }
 

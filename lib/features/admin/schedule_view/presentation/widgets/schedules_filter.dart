@@ -20,7 +20,7 @@ class SchedulesFilter extends StatelessWidget {
               final doctorName = doctors[index];
               final doctorId = index == 0 
                   ? '' 
-                  : controller.doctors[index - 1].id;
+                  : controller.doctors[index - 1].userId;
               
               final isSelected = index == 0 
                   ? controller.searchController.text.isEmpty && controller.selectedDoctorId.isEmpty

@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
+// import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/config/fonnte_config.dart';
 import '../controllers/notification_controller.dart';
@@ -12,12 +14,22 @@ import '../../domain/usecases/process_pending_notifications.dart';
 class NotificationBinding extends Bindings {
   @override
   void dependencies() {
+    // Create HTTP client with better SSL handling
+    final httpClient = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 30)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) {
+        // Only accept certificates from fonnte.com
+        return host == 'api.fonnte.com';
+      };
+    
+    final client = IOClient(httpClient);
+
     // Remote Data Source
     Get.lazyPut<NotificationRemoteDataSource>(
       () => NotificationRemoteDataSourceImpl(
         fonnteApiToken: FonnteConfig.apiToken,
         fonnteBaseUrl: FonnteConfig.baseUrl,
-        client: http.Client(),
+        client: client,
         firestore: FirebaseFirestore.instance,
       ),
     );

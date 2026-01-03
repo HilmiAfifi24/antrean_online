@@ -21,4 +21,9 @@ class PatientScheduleRepositoryImpl implements PatientScheduleRepository {
   Future<List<ScheduleEntity>> searchSchedules(String query) async {
     return await remoteDataSource.searchSchedules(query);
   }
+
+  @override
+  Stream<List<ScheduleEntity>> getSchedulesByDayStream(String day) {
+    return remoteDataSource.getSchedulesByDayStream(day);
+  }
 }

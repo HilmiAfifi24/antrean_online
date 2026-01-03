@@ -159,40 +159,86 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
 
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white,
+                          const Color(0xFF3B82F6).withValues(alpha: 0.02),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF64748B).withValues(alpha: 0.06),
-                          offset: const Offset(0, 1),
-                          blurRadius: 3,
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+                          offset: const Offset(0, 4),
+                          blurRadius: 12,
                         ),
                       ],
+                      border: Border.all(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                        width: 1,
+                      ),
                     ),
                     child: Column(
                       children: [
-                        Padding(
+                        Container(
                           padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF3B82F6).withValues(alpha: 0.05),
+                                Colors.transparent,
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                            ),
+                          ),
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.history_rounded,
-                                color: const Color(0xFF64748B),
-                                size: 20,
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                                      const Color(0xFF3B82F6).withValues(alpha: 0.05),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.history_rounded,
+                                  color: Color(0xFF3B82F6),
+                                  size: 20,
+                                ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 12),
                               const Text(
                                 "Riwayat Aktivitas",
                                 style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF374151),
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                        Container(
+                          height: 1,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                const Color(0xFF3B82F6).withValues(alpha: 0.2),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
                         Obx(() {
                           if (controller.isLoading.value) {
                             return const Padding(
@@ -208,17 +254,30 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
                               padding: const EdgeInsets.all(40),
                               child: Column(
                                 children: [
-                                  Icon(
-                                    Icons.inbox_rounded,
-                                    size: 48,
-                                    color: const Color(0xFF9CA3AF),
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                          const Color(0xFF3B82F6).withValues(alpha: 0.05),
+                                        ],
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.inbox_rounded,
+                                      size: 48,
+                                      color: Color(0xFF3B82F6),
+                                    ),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 16),
                                   const Text(
                                     "Belum ada aktivitas",
                                     style: TextStyle(
-                                      color: Color(0xFF6B7280),
+                                      color: Color(0xFF64748B),
                                       fontSize: 14,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -230,49 +289,94 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: controller.recentActivities.length,
-                            separatorBuilder: (context, index) =>
-                                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                            separatorBuilder: (context, index) => Container(
+                              height: 1,
+                              margin: const EdgeInsets.symmetric(horizontal: 20),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.transparent,
+                                    const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                              ),
+                            ),
                             itemBuilder: (context, index) {
                               final activity = controller.recentActivities[index];
-                              return ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
                                   horizontal: 20,
-                                  vertical: 8,
+                                  vertical: 12,
                                 ),
-                                leading: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: _getActivityColor(activity['type'])
-                                        .withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    _getActivityIcon(activity['type']),
-                                    size: 20,
-                                    color: _getActivityColor(activity['type']),
-                                  ),
-                                ),
-                                title: Text(
-                                  activity['title'],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF374151),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  activity['subtitle'],
-                                  style: const TextStyle(
-                                    color: Color(0xFF6B7280),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                trailing: Text(
-                                  controller.formatActivityTime(activity['timestamp']),
-                                  style: const TextStyle(
-                                    color: Color(0xFF9CA3AF),
-                                    fontSize: 12,
-                                  ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            _getActivityColor(activity['type']).withValues(alpha: 0.15),
+                                            _getActivityColor(activity['type']).withValues(alpha: 0.05),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: _getActivityColor(activity['type']).withValues(alpha: 0.3),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        _getActivityIcon(activity['type']),
+                                        size: 22,
+                                        color: _getActivityColor(activity['type']),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            activity['title'],
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF1E293B),
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            activity['subtitle'],
+                                            style: const TextStyle(
+                                              color: Color(0xFF64748B),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        controller.formatActivityTime(activity['timestamp']),
+                                        style: const TextStyle(
+                                          color: Color(0xFF3B82F6),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               );
                             },
@@ -298,44 +402,75 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: color.withValues(alpha: 0.2),
-            width: 1.5,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withValues(alpha: 0.15),
+                color.withValues(alpha: 0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: color.withValues(alpha: 0.3),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withValues(alpha: 0.2),
+                      color.withValues(alpha: 0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  icon,
+                  size: 32,
+                  color: color,
+                ),
               ),
-              child: Icon(
-                icon,
-                size: 28,
-                color: color,
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  letterSpacing: 0.2,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
