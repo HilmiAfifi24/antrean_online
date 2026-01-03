@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../domain/entities/schedule_entity.dart';
@@ -274,5 +275,124 @@ class ScheduleRemoteDataSource {
       hour: int.parse(parts[0]),
       minute: int.parse(parts[1]),
     );
+  }
+
+  // Real-time stream for schedules by day with queue count updates
+  Stream<List<ScheduleEntity>> getSchedulesByDayStream(String day) {
+    try {
+      // Create a stream controller to combine both schedules and queues streams
+      late StreamController<List<ScheduleEntity>> controller;
+      StreamSubscription? schedulesSubscription;
+      StreamSubscription? queuesSubscription;
+      
+      controller = StreamController<List<ScheduleEntity>>(
+        onListen: () {
+          // Function to rebuild schedule list with current patient counts
+          Future<void> updateSchedules() async {
+            try {
+              final snapshot = await firestore
+                  .collection('schedules')
+                  .where('is_active', isEqualTo: true)
+                  .where('days_of_week', arrayContains: day)
+                  .get();
+
+              final schedulesList = await Future.wait(
+                snapshot.docs.map((doc) async {
+                  final data = doc.data();
+                  
+                  // Calculate the appointment date for the selected day
+                  final now = DateTime.now();
+                  final dayNameMap = {
+                    'Senin': DateTime.monday,
+                    'Selasa': DateTime.tuesday,
+                    'Rabu': DateTime.wednesday,
+                    'Kamis': DateTime.thursday,
+                    'Jumat': DateTime.friday,
+                    'Sabtu': DateTime.saturday,
+                    'Minggu': DateTime.sunday,
+                  };
+                  
+                  final targetWeekday = dayNameMap[day];
+                  int daysUntil = 0;
+                  if (targetWeekday != null) {
+                    daysUntil = (targetWeekday - now.weekday + 7) % 7;
+                  }
+                  
+                  final appointmentDate = DateTime(now.year, now.month, now.day).add(Duration(days: daysUntil));
+                  
+                  // Normalize date to midnight for comparison
+                  final normalizedDate = DateTime(
+                    appointmentDate.year,
+                    appointmentDate.month,
+                    appointmentDate.day,
+                  );
+                  
+                  // Count active queues for this schedule on the appointment date
+                  final queueSnapshot = await firestore
+                      .collection('queues')
+                      .where('schedule_id', isEqualTo: doc.id)
+                      .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+                      .where('status', whereIn: ['menunggu', 'dipanggil', 'selesai'])
+                      .get();
+                  
+                  final currentPatients = queueSnapshot.docs.length;
+                  
+                  return ScheduleEntity(
+                    id: doc.id,
+                    doctorId: data['doctor_id'] ?? '',
+                    doctorName: data['doctor_name'] ?? '',
+                    doctorSpecialization: data['doctor_specialization'] ?? '',
+                    date: appointmentDate,
+                    startTime: _parseTimeOfDay(data['start_time']),
+                    endTime: _parseTimeOfDay(data['end_time']),
+                    daysOfWeek: List<String>.from(data['days_of_week'] ?? []),
+                    maxPatients: data['max_patients'] ?? 0,
+                    currentPatients: currentPatients, // Real-time count from queues
+                    isActive: data['is_active'] ?? false,
+                  );
+                }).toList(),
+              );
+
+              if (!controller.isClosed) {
+                controller.add(schedulesList);
+              }
+            } catch (e) {
+              if (!controller.isClosed) {
+                controller.addError(e);
+              }
+            }
+          }
+
+          // Listen to schedules collection changes
+          schedulesSubscription = firestore
+              .collection('schedules')
+              .where('is_active', isEqualTo: true)
+              .where('days_of_week', arrayContains: day)
+              .snapshots()
+              .listen((_) {
+            updateSchedules();
+          });
+
+          // Listen to queues collection changes
+          queuesSubscription = firestore
+              .collection('queues')
+              .snapshots()
+              .listen((_) {
+            updateSchedules();
+          });
+
+          // Initial load
+          updateSchedules();
+        },
+        onCancel: () {
+          schedulesSubscription?.cancel();
+          queuesSubscription?.cancel();
+        },
+      );
+
+      return controller.stream;
+    } catch (e) {
+      throw Exception('Failed to stream schedules by day: $e');
+    }
   }
 }

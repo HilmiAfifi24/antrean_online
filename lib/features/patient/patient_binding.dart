@@ -5,6 +5,7 @@ import 'data/repositories/patient_schedule_repository_impl.dart';
 import 'domain/repositories/patient_schedule_repository.dart';
 import 'domain/usecases/get_all_schedules.dart';
 import 'domain/usecases/get_schedules_by_day.dart';
+import 'domain/usecases/get_schedules_by_day_stream.dart';
 import 'domain/usecases/search_schedules.dart';
 import 'presentation/controllers/patient_controller.dart';
 
@@ -31,6 +32,7 @@ class PatientBinding extends Bindings {
     // Use Cases Layer
     Get.put(GetAllSchedules(Get.find<PatientScheduleRepository>()), permanent: true);
     Get.put(GetSchedulesByDay(Get.find<PatientScheduleRepository>()), permanent: true);
+    Get.put(GetSchedulesByDayStream(Get.find<PatientScheduleRepository>()), permanent: true);
     Get.put(SearchSchedules(Get.find<PatientScheduleRepository>()), permanent: true);
 
     // Controller Layer
@@ -38,6 +40,7 @@ class PatientBinding extends Bindings {
       PatientController(
         getAllSchedules: Get.find(),
         getSchedulesByDay: Get.find(),
+        getSchedulesByDayStream: Get.find(),
         searchSchedules: Get.find(),
       ),
       permanent: true,

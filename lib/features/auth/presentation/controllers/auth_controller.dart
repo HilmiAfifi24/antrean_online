@@ -2,15 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../domain/usecases/login_user.dart';
 import '../../domain/usecases/register_user.dart';
+import '../../domain/usecases/save_credentials.dart';
+import '../../domain/usecases/get_saved_credentials.dart';
+import '../../domain/usecases/clear_saved_credentials.dart';
+import '../../domain/usecases/has_remembered_credentials.dart';
+import '../../domain/usecases/reset_password.dart';
 import '../../domain/entities/user_entity.dart';
 
 class AuthController extends GetxController {
   final LoginUser loginUser;
   final RegisterUser registerUser;
+  final SaveCredentials saveCredentials;
+  final GetSavedCredentials getSavedCredentials;
+  final ClearSavedCredentials clearSavedCredentials;
+  final HasRememberedCredentials hasRememberedCredentials;
+  final ResetPassword resetPassword;
 
   AuthController({
     required this.loginUser,
     required this.registerUser,
+    required this.saveCredentials,
+    required this.getSavedCredentials,
+    required this.clearSavedCredentials,
+    required this.hasRememberedCredentials,
+    required this.resetPassword,
   });
 
   final emailController = TextEditingController();
@@ -19,9 +34,38 @@ class AuthController extends GetxController {
 
   var isLoading = false.obs;
   var currentUser = Rxn<UserEntity>();
+  var isCheckingRememberedCredentials = true.obs;
+  var hasLoginError = false.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _loadSavedCredentials();
+  }
+
+  /// Load saved credentials if remember me was checked
+  Future<void> _loadSavedCredentials() async {
+    try {
+      isCheckingRememberedCredentials.value = true;
+      final hasRemembered = await hasRememberedCredentials();
+      
+      if (hasRemembered) {
+        final credentials = await getSavedCredentials();
+        if (credentials != null) {
+          emailController.text = credentials['email'] ?? '';
+          passwordController.text = credentials['password'] ?? '';
+          rememberMe.value = true;
+        }
+      }
+    } catch (e) {
+      // Silently fail - user can still login manually
+      debugPrint('Error loading saved credentials: $e');
+    } finally {
+      isCheckingRememberedCredentials.value = false;
+    }
+  }
 
   Future<void> login(String email, String password, {String? expectedRole}) async {
-
     if(!email.endsWith("@pens.ac.id")) {
       Get.snackbar(
         "Error", 
@@ -36,8 +80,16 @@ class AuthController extends GetxController {
     }
     try {
       isLoading.value = true;
+      hasLoginError.value = false;
       final user = await loginUser(email, password);
       currentUser.value = user;
+
+      // Handle Remember Me
+      if (rememberMe.value) {
+        await saveCredentials(email, password);
+      } else {
+        await clearSavedCredentials();
+      }
 
       // Validate role if expectedRole is provided
       if (expectedRole != null && user.role != expectedRole) {
@@ -77,6 +129,8 @@ class AuthController extends GetxController {
       // Extract error message
       String errorMessage = e.toString().replaceAll('Exception: ', '');
       
+      hasLoginError.value = true;
+      
       Get.snackbar(
         "Login Gagal",
         errorMessage,
@@ -87,7 +141,15 @@ class AuthController extends GetxController {
         duration: const Duration(seconds: 5),
         margin: const EdgeInsets.all(16),
         borderRadius: 12,
+        onTap: (_) {
+          hasLoginError.value = false;
+        },
       );
+      
+      // Auto enable button after error duration
+      Future.delayed(const Duration(seconds: 5), () {
+        hasLoginError.value = false;
+      });
     } finally {
       isLoading.value = false;
     }
@@ -158,13 +220,65 @@ class AuthController extends GetxController {
   }
 
   Future<void> logout() async {
-  try {
-    await registerUser.repository.logout(); 
-    currentUser.value = null;
-    Get.offAllNamed("/login");
-  } catch (e) {
-    Get.snackbar("Error", e.toString());
+    try {
+      await registerUser.repository.logout(); 
+      currentUser.value = null;
+      
+      // Clear form fields
+      emailController.clear();
+      passwordController.clear();
+      rememberMe.value = false;
+      
+      Get.offAllNamed("/login");
+    } catch (e) {
+      Get.snackbar("Error", e.toString());
+    }
   }
-}
 
+  Future<void> forgotPassword(String email) async {
+    try {
+      isLoading.value = true;
+      
+      await resetPassword(email);
+      
+      Get.snackbar(
+        "Berhasil",
+        "Email reset password telah dikirim. Silakan cek inbox email Anda",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.shade100,
+        colorText: Colors.green.shade900,
+        icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+        duration: const Duration(seconds: 5),
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
+      
+      Future.delayed(const Duration(seconds: 2), () {
+        Get.back();
+      });
+    } catch (e) {
+      String errorMessage = e.toString().replaceAll('Exception: ', '');
+      
+      Get.snackbar(
+        "Gagal",
+        errorMessage,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
+        duration: const Duration(seconds: 5),
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  @override
+  void onClose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.onClose();
+  }
 }

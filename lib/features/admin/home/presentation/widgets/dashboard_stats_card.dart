@@ -1,7 +1,6 @@
-import 'package:antrean_online/core/utils/responsive.dart';
 import 'package:flutter/material.dart';
 
-class DashboardStatCard extends StatelessWidget {
+class DashboardStatCard extends StatefulWidget {
   final String title;
   final int count;
   final IconData icon;
@@ -18,121 +17,179 @@ class DashboardStatCard extends StatelessWidget {
   });
 
   @override
+  State<DashboardStatCard> createState() => _DashboardStatCardState();
+}
+
+class _DashboardStatCardState extends State<DashboardStatCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-
-    final rv = context.rv;
-    final screenWidth = rv.screenWidth;
-    final isSmallScreen = rv.isSmallScreen;
-    final iconSize = rv.iconSize;
-    final iconInnerSize = rv.iconInnerSize;
-    final titleFontSize = rv.titleFontSize;
-    final countFontSize = rv.countFontSize;
-    final detailFontSize = rv.detailFontSize;
-    final horizontalPadding = rv.horizontalPadding;
-    final verticalPadding = rv.verticalPadding;
-
-    
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(
-          horizontal: horizontalPadding,
-          vertical: verticalPadding,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _isHovered = true);
+        _animController.forward();
+      },
+      onExit: (_) {
+        setState(() => _isHovered = false);
+        _animController.reverse();
+      },
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  widget.color.withValues(alpha: 0.03),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: _isHovered
+                      ? widget.color.withValues(alpha: 0.2)
+                      : const Color(0xFF3B82F6).withValues(alpha: 0.08),
+                  blurRadius: _isHovered ? 20 : 12,
+                  offset: Offset(0, _isHovered ? 6 : 3),
+                  spreadRadius: _isHovered ? 2 : 0,
+                ),
+              ],
+              border: Border.all(
+                color: _isHovered
+                    ? widget.color.withValues(alpha: 0.3)
+                    : widget.color.withValues(alpha: 0.1),
+                width: 2,
+              ),
             ),
-          ],
-          border: Border.all(
-            color: color.withValues(alpha: 0.1),
-            width: 1,
+            child: Stack(
+              children: [
+                // Background pattern
+                Positioned(
+                  right: -20,
+                  top: -20,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          widget.color.withValues(alpha: 0.08),
+                          widget.color.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    // Icon Section with animated background
+                    Container(
+                      width: 65,
+                      height: 65,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            widget.color.withValues(alpha: 0.2),
+                            widget.color.withValues(alpha: 0.05),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: widget.color.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: widget.color.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        widget.icon,
+                        size: 32,
+                        color: widget.color,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Content Section
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.title,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            widget.count.toString(),
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: widget.color,
+                              height: 1.0,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Arrow Icon
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: widget.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: widget.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            // Icon Section with animated background
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: iconSize,
-              height: iconSize,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                icon,
-                size: iconInnerSize,
-                color: color,
-              ),
-            ),
-            
-            SizedBox(width: screenWidth * 0.04), // 4% of screen width
-            
-            // Content Section
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: titleFontSize,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1E293B),
-                    ),
-                  ),
-                  SizedBox(height: isSmallScreen ? 4 : 8),
-                  Text(
-                    count.toString(),
-                    style: TextStyle(
-                      fontSize: countFontSize,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Detail Button
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 12 : 16,
-                vertical: isSmallScreen ? 6 : 8,
-              ),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "Lihat Detail",
-                    style: TextStyle(
-                      color: color,
-                      fontSize: detailFontSize,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: detailFontSize,
-                    color: color,
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

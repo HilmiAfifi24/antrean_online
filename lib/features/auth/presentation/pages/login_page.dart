@@ -116,14 +116,7 @@ class LoginPage extends StatelessWidget {
                                 }),
                                 TextButton(
                                   onPressed: () {
-                                    Get.snackbar(
-                                      "Info",
-                                      "Fitur lupa password akan segera tersedia",
-                                      snackPosition: SnackPosition.BOTTOM,
-                                      backgroundColor: const Color(0xFF3B82F6),
-                                      colorText: Colors.white,
-                                      borderRadius: 12,
-                                    );
+                                    Get.toNamed('/forgot-password');
                                   },
                                   style: TextButton.styleFrom(
                                     padding: EdgeInsets.symmetric(
@@ -155,7 +148,9 @@ class LoginPage extends StatelessWidget {
                               icon: Icons.login_rounded,
                               isLoading: controller.isLoading.value,
                               isSmallScreen: isSmallScreen,
-                              onPressed: () {
+                              onPressed: (controller.hasLoginError.value || controller.isLoading.value) 
+                                  ? null 
+                                  : () {
                                 if (_validateForm(
                                   emailController,
                                   passwordController,

@@ -1,12 +1,19 @@
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InitialBinding extends Bindings {
   @override
   void dependencies() {
-    // Global services
+    // Global services - permanent means they won't be deleted
     Get.put<FirebaseAuth>(FirebaseAuth.instance, permanent: true);
     Get.put<FirebaseFirestore>(FirebaseFirestore.instance, permanent: true);
+    
+    // Initialize SharedPreferences asynchronously
+    Get.putAsync<SharedPreferences>(
+      () async => await SharedPreferences.getInstance(),
+      permanent: true,
+    );
   }
 }
