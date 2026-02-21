@@ -10,6 +10,9 @@ class DoctorController extends GetxController {
   final RxString _doctorName = ''.obs;
   final RxString _doctorSpecialization = ''.obs;
   final RxString _doctorId = ''.obs;
+  final RxString _doctorEmail = ''.obs;
+  final RxString _doctorPhone = ''.obs;
+  final RxString _doctorNomorId = ''.obs;
   final RxBool _isLoading = false.obs;
   final RxInt _totalPatientsToday = 0.obs;
   final RxInt _completedPatientsToday = 0.obs;
@@ -19,6 +22,9 @@ class DoctorController extends GetxController {
   String get doctorName => _doctorName.value;
   String get doctorSpecialization => _doctorSpecialization.value;
   String get doctorId => _doctorId.value;
+  String get doctorEmail => _doctorEmail.value;
+  String get doctorPhone => _doctorPhone.value;
+  String get doctorNomorId => _doctorNomorId.value;
   bool get isLoading => _isLoading.value;
   int get totalPatientsToday => _totalPatientsToday.value;
   int get completedPatientsToday => _completedPatientsToday.value;
@@ -50,27 +56,32 @@ class DoctorController extends GetxController {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        // Get doctor data from users collection
-        final userDoc = await _firestore
-            .collection('users')
-            .doc(user.uid)
+        _doctorId.value = user.uid;
+        _doctorEmail.value = user.email ?? '';
+
+        // Get detailed doctor data from doctors collection
+        final doctorQuery = await _firestore
+            .collection('doctors')
+            .where('user_id', isEqualTo: user.uid)
+            .limit(1)
             .get();
 
-        if (userDoc.exists) {
-          final data = userDoc.data();
-          _doctorId.value = user.uid;
-          _doctorName.value = data?['name'] ?? 'Dokter';
-          
-          // Get specialization from doctors collection
-          final doctorQuery = await _firestore
-              .collection('doctors')
-              .where('user_id', isEqualTo: user.uid)
-              .limit(1)
-              .get();
+        if (doctorQuery.docs.isNotEmpty) {
+          final doctorData = doctorQuery.docs.first.data();
+          _doctorName.value = doctorData['nama_lengkap'] ?? '';
+          _doctorSpecialization.value = doctorData['spesialisasi'] ?? '';
+          _doctorPhone.value = doctorData['nomor_telepon'] ?? '';
+          _doctorNomorId.value = doctorData['nomor_identifikasi'] ?? '';
+        }
 
-          if (doctorQuery.docs.isNotEmpty) {
-            final doctorData = doctorQuery.docs.first.data();
-            _doctorSpecialization.value = doctorData['specialization'] ?? '';
+        // Fallback: jika nama masih kosong, coba dari users collection
+        if (_doctorName.value.isEmpty) {
+          final userDoc = await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .get();
+          if (userDoc.exists) {
+            _doctorName.value = userDoc.data()?['name'] ?? 'Dokter';
           }
         }
       }
@@ -78,6 +89,20 @@ class DoctorController extends GetxController {
       Get.snackbar(
         'Error',
         'Gagal memuat data dokter: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  // Logout
+  Future<void> logout() async {
+    try {
+      await _auth.signOut();
+      Get.offAllNamed('/login');
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Gagal logout: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
@@ -283,9 +308,6 @@ class DoctorController extends GetxController {
 
   // Refresh all data
   Future<void> refreshData() async {
-    await Future.wait([
-      _loadDoctorData(),
-      _loadQueueStats(),
-    ]);
+    await Future.wait([_loadDoctorData(), _loadQueueStats()]);
   }
 }
