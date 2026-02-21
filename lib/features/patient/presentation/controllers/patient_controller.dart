@@ -41,7 +41,7 @@ class PatientController extends GetxController {
   String get selectedDay => _selectedDay.value;
   String get patientName => _patientName.value;
   String get searchText => _searchText.value;
-  
+
   // Greeting based on time
   String get greeting {
     final hour = DateTime.now().hour;
@@ -75,18 +75,17 @@ class PatientController extends GetxController {
     super.onInit();
     // Set selected day to today's day
     _selectedDay.value = _getTodayDayName();
-    
+
     // Setup auth state listener to reload name when user changes
     _setupAuthStateListener();
-    
+
     loadPatientName().then((_) {
       // Check if we need to prompt for name
       _checkAndPromptForName();
     });
-    
+
     // Load schedules filtered by today's day
     filterByDay(_selectedDay.value);
-    _setupRealtimeListener();
 
     // Listen to search changes
     searchController.addListener(() {
@@ -99,11 +98,13 @@ class PatientController extends GetxController {
       }
     });
   }
-  
+
   // Setup auth state listener
   void _setupAuthStateListener() {
     _authStateSubscription?.cancel();
-    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
+      user,
+    ) {
       if (user != null) {
         // User logged in or changed, reload name
         loadPatientName();
@@ -113,7 +114,7 @@ class PatientController extends GetxController {
       }
     });
   }
-  
+
   // Check if user needs to input their name
   Future<void> _checkAndPromptForName() async {
     try {
@@ -123,7 +124,7 @@ class PatientController extends GetxController {
             .collection('users')
             .doc(user.uid)
             .get();
-        
+
         if (userDoc.exists) {
           final data = userDoc.data();
           // If name field doesn't exist or empty, prompt user
@@ -136,11 +137,11 @@ class PatientController extends GetxController {
       // Silent fail
     }
   }
-  
+
   // Show dialog to input name
   void _showNameInputDialog() {
     final nameController = TextEditingController();
-    
+
     Get.dialog(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -152,10 +153,7 @@ class PatientController extends GetxController {
                 color: const Color(0xFF2196F3).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                Icons.person,
-                color: Color(0xFF2196F3),
-              ),
+              child: const Icon(Icons.person, color: Color(0xFF2196F3)),
             ),
             const SizedBox(width: 12),
             const Text(
@@ -199,10 +197,7 @@ class PatientController extends GetxController {
             onPressed: () {
               Get.back();
             },
-            child: Text(
-              'Nanti',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
+            child: Text('Nanti', style: TextStyle(color: Colors.grey[600])),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -216,7 +211,7 @@ class PatientController extends GetxController {
                 );
                 return;
               }
-              
+
               await _updateUserName(nameController.text.trim());
               Get.back();
             },
@@ -226,17 +221,14 @@ class PatientController extends GetxController {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
-              'Simpan',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
       barrierDismissible: false,
     );
   }
-  
+
   // Update user name in Firestore
   Future<void> _updateUserName(String name) async {
     try {
@@ -246,9 +238,9 @@ class PatientController extends GetxController {
             .collection('users')
             .doc(user.uid)
             .update({'name': name});
-        
+
         _patientName.value = name;
-        
+
         Get.snackbar(
           'Sukses',
           'Nama berhasil disimpan!',
@@ -268,12 +260,12 @@ class PatientController extends GetxController {
       );
     }
   }
-  
+
   // Get today's day name in Indonesian
   String _getTodayDayName() {
     final now = DateTime.now();
     final dayIndex = now.weekday; // 1 = Monday, 7 = Sunday
-    
+
     switch (dayIndex) {
       case 1:
         return 'Senin';
@@ -311,10 +303,10 @@ class PatientController extends GetxController {
             .collection('users')
             .doc(user.uid)
             .get();
-        
+
         if (userDoc.exists) {
           final data = userDoc.data();
-          
+
           // Try to get name from Firestore
           if (data?['name'] != null && data!['name'].toString().isNotEmpty) {
             _patientName.value = data['name'];
@@ -324,7 +316,7 @@ class PatientController extends GetxController {
             if (email.isNotEmpty) {
               final username = email.split('@').first;
               // Capitalize first letter
-              _patientName.value = username.isNotEmpty 
+              _patientName.value = username.isNotEmpty
                   ? username[0].toUpperCase() + username.substring(1)
                   : 'Pasien';
             } else {
@@ -346,21 +338,26 @@ class PatientController extends GetxController {
 
     // Listen to schedules stream (filtered by selected day)
     if (_selectedDay.value.isNotEmpty) {
-      _schedulesSubscription = getSchedulesByDayStream(_selectedDay.value).listen(
-        (schedules) {
-          _schedules.value = schedules;
-          
-          // Apply current filter
-          if (searchController.text.isNotEmpty) {
-            performSearch(searchController.text);
-          } else {
-            _filteredSchedules.value = schedules;
-          }
-        },
-        onError: (e) {
-          _showError('Error loading schedules: $e');
-        },
-      );
+      _schedulesSubscription = getSchedulesByDayStream(_selectedDay.value)
+          .listen(
+            (schedules) {
+              _schedules.value = schedules;
+
+              // Apply current filter
+              if (searchController.text.isNotEmpty) {
+                performSearch(searchController.text);
+              } else {
+                _filteredSchedules.value = schedules;
+              }
+              _isLoading.value = false;
+            },
+            onError: (e) {
+              _showError('Error loading schedules: $e');
+              _isLoading.value = false;
+            },
+          );
+    } else {
+      _isLoading.value = false;
     }
   }
 
@@ -371,7 +368,7 @@ class PatientController extends GetxController {
 
       final result = await getAllSchedules();
       _schedules.value = result;
-      
+
       // Apply filter based on selected day (today's day by default)
       if (_selectedDay.value.isNotEmpty) {
         filterByDay(_selectedDay.value);
@@ -390,28 +387,12 @@ class PatientController extends GetxController {
     try {
       _selectedDay.value = day;
       _isLoading.value = true;
-      
+
       if (searchController.text.isNotEmpty) {
         searchController.clear();
       }
 
-      // Cancel existing subscription and setup new stream listener
-      _schedulesSubscription?.cancel();
-      
-      // Listen to schedules stream (filtered by selected day)
-      // This stream automatically updates when queues change
-      _schedulesSubscription = getSchedulesByDayStream(day).listen(
-        (schedules) {
-          _schedules.value = schedules;
-          _filteredSchedules.value = schedules;
-          _isLoading.value = false;
-        },
-        onError: (e) {
-          _showError('Error loading schedules: $e');
-          _isLoading.value = false;
-        },
-      );
-      
+      _setupRealtimeListener();
     } catch (e) {
       _showError('Gagal memuat jadwal: ${e.toString()}');
       _isLoading.value = false;
