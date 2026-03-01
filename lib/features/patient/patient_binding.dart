@@ -6,8 +6,10 @@ import 'domain/repositories/patient_schedule_repository.dart';
 import 'domain/usecases/get_all_schedules.dart';
 import 'domain/usecases/get_schedules_by_day.dart';
 import 'domain/usecases/get_schedules_by_day_stream.dart';
+import 'domain/usecases/get_schedule_dates_stream.dart';
 import 'domain/usecases/search_schedules.dart';
 import 'presentation/controllers/patient_controller.dart';
+import 'presentation/bindings/queue_binding.dart';
 
 class PatientBinding extends Bindings {
   @override
@@ -30,10 +32,26 @@ class PatientBinding extends Bindings {
     );
 
     // Use Cases Layer
-    Get.put(GetAllSchedules(Get.find<PatientScheduleRepository>()), permanent: true);
-    Get.put(GetSchedulesByDay(Get.find<PatientScheduleRepository>()), permanent: true);
-    Get.put(GetSchedulesByDayStream(Get.find<PatientScheduleRepository>()), permanent: true);
-    Get.put(SearchSchedules(Get.find<PatientScheduleRepository>()), permanent: true);
+    Get.put(
+      GetAllSchedules(Get.find<PatientScheduleRepository>()),
+      permanent: true,
+    );
+    Get.put(
+      GetSchedulesByDay(Get.find<PatientScheduleRepository>()),
+      permanent: true,
+    );
+    Get.put(
+      GetSchedulesByDayStream(Get.find<PatientScheduleRepository>()),
+      permanent: true,
+    );
+    Get.put(
+      GetScheduleDatesStream(Get.find<PatientScheduleRepository>()),
+      permanent: true,
+    );
+    Get.put(
+      SearchSchedules(Get.find<PatientScheduleRepository>()),
+      permanent: true,
+    );
 
     // Controller Layer
     Get.put(
@@ -41,9 +59,14 @@ class PatientBinding extends Bindings {
         getAllSchedules: Get.find(),
         getSchedulesByDay: Get.find(),
         getSchedulesByDayStream: Get.find(),
+        getScheduleDatesStream: Get.find(),
         searchSchedules: Get.find(),
       ),
       permanent: true,
     );
+
+    // Initialize Queue Binding so QueueController is accessible everywhere
+    // in the patient section (especially for checking active queue in modal)
+    QueueBinding().dependencies();
   }
 }

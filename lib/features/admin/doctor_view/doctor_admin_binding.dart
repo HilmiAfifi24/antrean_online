@@ -38,17 +38,23 @@ class DoctorBinding extends Bindings {
     Get.put(UpdateDoctor(Get.find<DoctorAdminRepository>()), permanent: true);
     Get.put(DeleteDoctor(Get.find<DoctorAdminRepository>()), permanent: true);
     Get.put(SearchDoctors(Get.find<DoctorAdminRepository>()), permanent: true);
-    Get.put(GetSpecializations(Get.find<DoctorAdminRepository>()), permanent: true);
+    Get.put(
+      GetSpecializations(Get.find<DoctorAdminRepository>()),
+      permanent: true,
+    );
 
     // Controller Layer
-    Get.put(DoctorController(
-      getAllDoctors: Get.find(),
-      getDoctorById: Get.find(),
-      addDoctor: Get.find(),
-      updateDoctor: Get.find(),
-      deleteDoctor: Get.find(),
-      searchDoctors: Get.find(),
-      getSpecializations: Get.find(),
-    ), permanent: true);
+    Get.put(
+      DoctorAdminController(
+        getAllDoctors: Get.find(),
+        getDoctorById: Get.find(),
+        addDoctor: Get.find(),
+        updateDoctor: Get.find(),
+        deleteDoctor: Get.find(),
+        searchDoctors: Get.find(),
+        getSpecializations: Get.find(),
+      ),
+      permanent: true,
+    );
   }
 }

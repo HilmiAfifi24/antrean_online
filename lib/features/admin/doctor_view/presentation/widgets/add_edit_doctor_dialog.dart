@@ -6,14 +6,11 @@ import 'package:get/get.dart';
 class AddEditDoctorDialog extends StatelessWidget {
   final bool isEditing;
 
-  const AddEditDoctorDialog({
-    super.key,
-    required this.isEditing,
-  });
+  const AddEditDoctorDialog({super.key, required this.isEditing});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<DoctorController>();
+    final controller = Get.find<DoctorAdminController>();
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -31,9 +28,7 @@ class AddEditDoctorDialog extends StatelessWidget {
               padding: const EdgeInsets.all(24),
               decoration: const BoxDecoration(
                 color: Color(0xFF3B82F6),
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Row(
                 children: [
@@ -55,10 +50,7 @@ class AddEditDoctorDialog extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: () => Get.back(),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: Colors.white,
-                    ),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
                   ),
                 ],
               ),
@@ -146,15 +138,17 @@ class AddEditDoctorDialog extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 8, left: 4),
                       child: Text(
-                        isEditing 
-                          ? '⚠️ Email tidak dapat diubah setelah akun dibuat'
-                          : '✓ Email harus menggunakan domain @pens.ac.id',
+                        isEditing
+                            ? '⚠️ Email tidak dapat diubah setelah akun dibuat'
+                            : '✓ Email harus menggunakan domain @pens.ac.id',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isEditing 
-                            ? const Color(0xFF64748B)
-                            : const Color(0xFF3B82F6),
-                          fontStyle: isEditing ? FontStyle.italic : FontStyle.normal,
+                          color: isEditing
+                              ? const Color(0xFF64748B)
+                              : const Color(0xFF3B82F6),
+                          fontStyle: isEditing
+                              ? FontStyle.italic
+                              : FontStyle.normal,
                         ),
                       ),
                     ),
@@ -196,39 +190,48 @@ class AddEditDoctorDialog extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: Obx(() => ElevatedButton(
-                      onPressed: controller.isFormValid
-                          ? () {
-                              if (isEditing) {
-                                controller.updateExistingDoctor(
-                                  controller.currentDoctor!.id,
-                                );
-                              } else {
-                                controller.addNewDoctor();
+                    child: Obx(
+                      () => ElevatedButton(
+                        onPressed: controller.isFormValid
+                            ? () {
+                                if (isEditing) {
+                                  controller.updateExistingDoctor(
+                                    controller.currentDoctor!.id,
+                                  );
+                                } else {
+                                  controller.addNewDoctor();
+                                }
                               }
-                            }
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3B82F6),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        disabledBackgroundColor: const Color(0xFFE2E8F0),
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3B82F6),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          disabledBackgroundColor: const Color(0xFFE2E8F0),
+                        ),
+                        child: Obx(
+                          () => controller.isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  isEditing
+                                      ? 'Simpan Perubahan'
+                                      : 'Tambah Dokter',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
                       ),
-                      child: Obx(() => controller.isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Text(
-                              isEditing ? 'Simpan Perubahan' : 'Tambah Dokter',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                      ),
-                    )),
+                    ),
                   ),
                 ],
               ),
@@ -276,9 +279,7 @@ class AddEditDoctorDialog extends StatelessWidget {
           decoration: BoxDecoration(
             color: enabled ? Colors.white : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFE2E8F0),
-            ),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: TextField(
             controller: controller,
@@ -292,7 +293,9 @@ class AddEditDoctorDialog extends StatelessWidget {
               ),
               prefixIcon: Icon(
                 icon,
-                color: enabled ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                color: enabled
+                    ? const Color(0xFF64748B)
+                    : const Color(0xFF94A3B8),
                 size: 20,
               ),
               border: InputBorder.none,
@@ -301,10 +304,7 @@ class AddEditDoctorDialog extends StatelessWidget {
                 vertical: 16,
               ),
             ),
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF1E293B),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
           ),
         ),
       ],
@@ -312,101 +312,95 @@ class AddEditDoctorDialog extends StatelessWidget {
   }
 
   // Password field khusus dengan toggle visibility
-Widget _buildPasswordField(DoctorController controller) {
-  // deklarasi variable di luar builder supaya bisa di-toggle oleh StatefulBuilder
-  bool isPasswordVisible = false;
+  Widget _buildPasswordField(DoctorAdminController controller) {
+    // deklarasi variable di luar builder supaya bisa di-toggle oleh StatefulBuilder
+    bool isPasswordVisible = false;
 
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Row(
-        children: [
-          Text(
-            'Password',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          Text(
-            ' *',
-            style: TextStyle(
-              color: Color(0xFFEF4444),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 8),
-      Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFE2E8F0),
-          ),
-        ),
-        child: StatefulBuilder(
-          builder: (context, setState) {
-            return TextField(
-              controller: controller.passwordController,
-              obscureText: !isPasswordVisible,
-              decoration: InputDecoration(
-                hintText: 'Masukkan password (minimal 6 karakter)',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontSize: 14,
-                ),
-                prefixIcon: const Icon(
-                  Icons.lock_rounded,
-                  color: Color(0xFF64748B),
-                  size: 20,
-                ),
-                suffixIcon: IconButton(
-                  onPressed: () {
-                    setState(() {
-                      isPasswordVisible = !isPasswordVisible;
-                    });
-                  },
-                  icon: Icon(
-                    // <-- ternary expression harus ada di sini, tidak terputus
-                    isPasswordVisible
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
-                    color: const Color(0xFF64748B),
-                    size: 20,
-                  ),
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-              ),
-              style: const TextStyle(
-                fontSize: 14,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Text(
+              'Password',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
                 color: Color(0xFF1E293B),
               ),
-            );
-          },
+            ),
+            Text(
+              ' *',
+              style: TextStyle(
+                color: Color(0xFFEF4444),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Password akan digunakan dokter untuk login ke sistem',
-        style: TextStyle(
-          fontSize: 12,
-          color: Color(0xFF64748B),
-          fontStyle: FontStyle.italic,
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return TextField(
+                controller: controller.passwordController,
+                obscureText: !isPasswordVisible,
+                decoration: InputDecoration(
+                  hintText: 'Masukkan password (minimal 6 karakter)',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.lock_rounded,
+                    color: Color(0xFF64748B),
+                    size: 20,
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        isPasswordVisible = !isPasswordVisible;
+                      });
+                    },
+                    icon: Icon(
+                      // <-- ternary expression harus ada di sini, tidak terputus
+                      isPasswordVisible
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                      color: const Color(0xFF64748B),
+                      size: 20,
+                    ),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+              );
+            },
+          ),
         ),
-      ),
-    ],
-  );
-}
+        const SizedBox(height: 8),
+        const Text(
+          'Password akan digunakan dokter untuk login ke sistem',
+          style: TextStyle(
+            fontSize: 12,
+            color: Color(0xFF64748B),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
+  }
 
-
-  Widget _buildSpecializationField(DoctorController controller) {
+  Widget _buildSpecializationField(DoctorAdminController controller) {
     final specializations = [
       'Umum',
       'Anak',
@@ -452,60 +446,54 @@ Widget _buildPasswordField(DoctorController controller) {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFE2E8F0),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Obx(
+            () => DropdownButtonFormField<String>(
+              initialValue: controller.selectedSpecialization.isEmpty
+                  ? null
+                  : controller.selectedSpecialization,
+              hint: const Text(
+                'Pilih spesialisasi dokter',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+              ),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(
+                  Icons.medical_services_rounded,
+                  color: Color(0xFF64748B),
+                  size: 20,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+              ),
+              items: specializations.map((String specialization) {
+                return DropdownMenuItem<String>(
+                  value: specialization,
+                  child: Text(
+                    specialization,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (String? value) {
+                if (value != null) {
+                  controller.setSelectedSpecialization(value);
+                }
+              },
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Color(0xFF64748B),
+              ),
+              dropdownColor: Colors.white,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
             ),
           ),
-          child: Obx(() => DropdownButtonFormField<String>(
-            initialValue: controller.selectedSpecialization.isEmpty 
-                ? null 
-                : controller.selectedSpecialization,
-            hint: const Text(
-              'Pilih spesialisasi dokter',
-              style: TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 14,
-              ),
-            ),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(
-                Icons.medical_services_rounded,
-                color: Color(0xFF64748B),
-                size: 20,
-              ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-            ),
-            items: specializations.map((String specialization) {
-              return DropdownMenuItem<String>(
-                value: specialization,
-                child: Text(
-                  specialization,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-              );
-            }).toList(),
-            onChanged: (String? value) {
-              if (value != null) {
-                controller.setSelectedSpecialization(value);
-              }
-            },
-            icon: const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF64748B),
-            ),
-            dropdownColor: Colors.white,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF1E293B),
-            ),
-          )),
         ),
       ],
     );

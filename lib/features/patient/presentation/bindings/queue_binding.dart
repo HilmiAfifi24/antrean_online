@@ -12,27 +12,26 @@ class QueueBinding extends Bindings {
   @override
   dependencies() {
     // Data Source
-    Get.lazyPut<QueueRemoteDataSource>(
-      () => QueueRemoteDataSource(FirebaseFirestore.instance),
+    Get.put<QueueRemoteDataSource>(
+      QueueRemoteDataSource(FirebaseFirestore.instance),
+      permanent: true,
     );
 
     // Repository
-    Get.lazyPut<PatientQueueRepository>(
-      () => PatientQueueRepositoryImpl(
-        Get.find<QueueRemoteDataSource>(),
-      ),
+    Get.put<PatientQueueRepository>(
+      PatientQueueRepositoryImpl(Get.find<QueueRemoteDataSource>()),
+      permanent: true,
     );
 
     // Use Cases
-    Get.lazyPut(() => GetActiveQueue(Get.find()));
-    Get.lazyPut(() => CreateQueue(Get.find()));
-    Get.lazyPut(() => CancelQueue(Get.find()));
+    Get.put(GetActiveQueue(Get.find()), permanent: true);
+    Get.put(CreateQueue(Get.find()), permanent: true);
+    Get.put(CancelQueue(Get.find()), permanent: true);
 
     // Controller
-    Get.lazyPut(
-      () => QueueController(
-        repository: Get.find<PatientQueueRepository>(),
-      ),
+    Get.put(
+      QueueController(repository: Get.find<PatientQueueRepository>()),
+      permanent: true,
     );
   }
 }

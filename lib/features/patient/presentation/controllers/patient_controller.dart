@@ -7,18 +7,21 @@ import '../../domain/entities/schedule_entity.dart';
 import '../../domain/usecases/get_all_schedules.dart';
 import '../../domain/usecases/get_schedules_by_day.dart';
 import '../../domain/usecases/get_schedules_by_day_stream.dart';
+import '../../domain/usecases/get_schedule_dates_stream.dart';
 import '../../domain/usecases/search_schedules.dart';
 
 class PatientController extends GetxController {
   final GetAllSchedules getAllSchedules;
   final GetSchedulesByDay getSchedulesByDay;
   final GetSchedulesByDayStream getSchedulesByDayStream;
+  final GetScheduleDatesStream getScheduleDatesStream;
   final SearchSchedules searchSchedules;
 
   PatientController({
     required this.getAllSchedules,
     required this.getSchedulesByDay,
     required this.getSchedulesByDayStream,
+    required this.getScheduleDatesStream,
     required this.searchSchedules,
   });
 

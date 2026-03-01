@@ -12,15 +12,15 @@ class DoctorsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<DoctorController>();
-    
+    final controller = Get.find<DoctorAdminController>();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
         children: [
           // Header with gradient
           const DoctorsHeader(),
-          
+
           // Search and Filter Section
           Container(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
@@ -39,7 +39,7 @@ class DoctorsPage extends StatelessWidget {
             child: RefreshIndicator(
               onRefresh: controller.refreshData,
               color: const Color(0xFF3B82F6),
-              child: GetBuilder<DoctorController>(
+              child: GetBuilder<DoctorAdminController>(
                 builder: (controller) {
                   if (controller.isLoading && controller.doctors.isEmpty) {
                     return Center(
@@ -49,11 +49,15 @@ class DoctorsPage extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                              color: const Color(
+                                0xFF3B82F6,
+                              ).withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF3B82F6),
+                              ),
                               strokeWidth: 3,
                             ),
                           ),
@@ -82,7 +86,10 @@ class DoctorsPage extends StatelessWidget {
                       return DoctorCard(
                         doctor: doctor,
                         onEdit: () => controller.showEditDoctorDialog(doctor),
-                        onDelete: () => controller.removeDoctor(doctor.id, doctor.namaLengkap),
+                        onDelete: () => controller.removeDoctor(
+                          doctor.id,
+                          doctor.namaLengkap,
+                        ),
                       );
                     },
                   );
@@ -98,10 +105,7 @@ class DoctorsPage extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF3B82F6),
-              Color(0xFF2563EB),
-            ],
+            colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
           ),
           boxShadow: [
             BoxShadow(
@@ -118,10 +122,7 @@ class DoctorsPage extends StatelessWidget {
           icon: const Icon(Icons.add_rounded, size: 24),
           label: const Text(
             'Tambah Dokter',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
         ),
       ),

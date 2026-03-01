@@ -9,7 +9,7 @@
 //   Widget build(BuildContext context) {
 //     return SizedBox(
 //       height: 50,
-//       child: GetBuilder<DoctorController>(
+//       child: GetBuilder<DoctorAdminController>(
 //         builder: (controller) {
 //           final specializations = ['Semua', ...controller.specializations];
           

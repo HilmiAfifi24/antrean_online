@@ -7,17 +7,14 @@ class DoctorsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<DoctorController>();
-    
+    final controller = Get.find<DoctorAdminController>();
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF3B82F6),
-            const Color(0xFF2563EB),
-          ],
+          colors: [const Color(0xFF3B82F6), const Color(0xFF2563EB)],
         ),
         boxShadow: [
           BoxShadow(
@@ -100,7 +97,7 @@ class DoctorsHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   // Statistics Cards
-                  GetBuilder<DoctorController>(
+                  GetBuilder<DoctorAdminController>(
                     builder: (controller) {
                       return Row(
                         children: [
@@ -158,11 +155,7 @@ class DoctorsHeader extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 24,
-            ),
+            child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
