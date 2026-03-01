@@ -98,7 +98,7 @@ class DoctorController extends GetxController {
   Future<void> logout() async {
     try {
       await _auth.signOut();
-      Get.offAllNamed('/login');
+      Get.offAllNamed('/login', parameters: {'role': 'doctor'});
     } catch (e) {
       Get.snackbar(
         'Error',

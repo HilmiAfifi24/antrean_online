@@ -7,15 +7,12 @@ class DoctorsSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<DoctorController>(
+    return GetBuilder<DoctorAdminController>(
       builder: (controller) {
         return Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                const Color(0xFFF8FAFC),
-                Colors.white,
-              ],
+              colors: [const Color(0xFFF8FAFC), Colors.white],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
@@ -35,10 +32,7 @@ class DoctorsSearchBar extends StatelessWidget {
             onChanged: (query) {
               controller.filterDoctors(query);
             },
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
             decoration: InputDecoration(
               hintText: 'Cari nama dokter, spesialisasi, atau ID...',
               hintStyle: TextStyle(

@@ -43,6 +43,7 @@ dependencies:
   http: ^1.2.2
   shared_preferences: ^2.3.3
   crypto: ^3.0.6
+  equatable: ^2.0.8
 
 dev_dependencies:
   flutter_test:

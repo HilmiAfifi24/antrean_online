@@ -1,22 +1,30 @@
-  import 'package:flutter/material.dart';
-  import 'package:flutter/services.dart';
-  import 'package:get/get.dart';
-  import 'package:firebase_auth/firebase_auth.dart';
-  import 'package:cloud_firestore/cloud_firestore.dart';
-  import '../../../../core/routes/app_routes.dart';
-  import '../../domain/entities/schedule_entity.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/routes/app_routes.dart';
+import '../../domain/entities/schedule_entity.dart';
 
-  // Helper function for formatting date
-  String _formatDate(DateTime date) {
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return '${days[date.weekday % 7]}, ${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-
-
+// Helper function for formatting date
+String _formatDate(DateTime date) {
+  final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  final months = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
+  return '${days[date.weekday % 7]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+}
 
 class BookingFormPage extends StatefulWidget {
   const BookingFormPage({super.key});
@@ -41,7 +49,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
   void initState() {
     super.initState();
     complaintController = TextEditingController();
-  birthDateController = TextEditingController();
+    birthDateController = TextEditingController();
     formKey = GlobalKey<FormState>();
     // Load user profile from Firestore
     _loadUserProfile();
@@ -62,7 +70,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
     if (schedule == null) {
       // Debug log to help trace transient null args during navigation
       // ignore: avoid_print
-      print('[BookingFormPage] arguments are null on open: Get.arguments=${Get.arguments}');
+      print(
+        '[BookingFormPage] arguments are null on open: Get.arguments=${Get.arguments}',
+      );
 
       return Scaffold(
         appBar: AppBar(
@@ -91,11 +101,16 @@ class _BookingFormPageState extends State<BookingFormPage> {
                         // Retry: read Get.arguments again and rebuild
                         final retrySchedule = Get.arguments as ScheduleEntity?;
                         // ignore: avoid_print
-                        print('[BookingFormPage] retry get.arguments=$retrySchedule');
+                        print(
+                          '[BookingFormPage] retry get.arguments=$retrySchedule',
+                        );
                         if (retrySchedule != null) {
                           // rebuild by pushing a new route with the correct args
                           // Use Get.offNamed to replace this page with fresh instance
-                          Get.offNamed(AppRoutes.booking, arguments: retrySchedule);
+                          Get.offNamed(
+                            AppRoutes.booking,
+                            arguments: retrySchedule,
+                          );
                         } else {
                           // if still null, show a gentle snackbar rather than immediate error
                           Get.snackbar(
@@ -168,9 +183,15 @@ class _BookingFormPageState extends State<BookingFormPage> {
                             const SizedBox(height: 24),
                             // Profile Info (readonly)
                             if (userName != null && userPhone != null) ...[
-                              _buildReadonlyField(label: 'Nama', initialValue: userName!),
+                              _buildReadonlyField(
+                                label: 'Nama',
+                                initialValue: userName!,
+                              ),
                               const SizedBox(height: 12),
-                              _buildReadonlyField(label: 'No. HP', initialValue: userPhone!),
+                              _buildReadonlyField(
+                                label: 'No. HP',
+                                initialValue: userPhone!,
+                              ),
                               const SizedBox(height: 16),
                             ],
                             // Form Title
@@ -186,7 +207,13 @@ class _BookingFormPageState extends State<BookingFormPage> {
                             GestureDetector(
                               onTap: () async {
                                 final today = DateTime.now();
-                                final initial = birthDate ?? DateTime(today.year - 20, today.month, today.day);
+                                final initial =
+                                    birthDate ??
+                                    DateTime(
+                                      today.year - 20,
+                                      today.month,
+                                      today.day,
+                                    );
                                 final picked = await showDatePicker(
                                   context: context,
                                   initialDate: initial,
@@ -196,7 +223,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
                                 if (picked != null) {
                                   setState(() {
                                     birthDate = picked;
-                                    birthDateController.text = _formatDate(picked);
+                                    birthDateController.text = _formatDate(
+                                      picked,
+                                    );
                                   });
                                 }
                               },
@@ -236,11 +265,18 @@ class _BookingFormPageState extends State<BookingFormPage> {
                                 fillColor: Colors.white,
                               ),
                               items: const [
-                                DropdownMenuItem(value: 'Laki-laki', child: Text('Laki-laki')),
-                                DropdownMenuItem(value: 'Perempuan', child: Text('Perempuan')),
+                                DropdownMenuItem(
+                                  value: 'Laki-laki',
+                                  child: Text('Laki-laki'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Perempuan',
+                                  child: Text('Perempuan'),
+                                ),
                               ],
                               onChanged: (val) => setState(() => gender = val),
-                              validator: (val) => val == null ? 'Pilih jenis kelamin' : null,
+                              validator: (val) =>
+                                  val == null ? 'Pilih jenis kelamin' : null,
                             ),
                             const SizedBox(height: 16),
                             // Complaint Field
@@ -263,9 +299,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
                               decoration: BoxDecoration(
                                 color: Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.blue.shade200,
-                                ),
+                                border: Border.all(color: Colors.blue.shade200),
                               ),
                               child: Row(
                                 children: [
@@ -297,7 +331,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF1976D2),
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -446,15 +482,16 @@ class _BookingFormPageState extends State<BookingFormPage> {
     );
   }
 
-  Widget _buildReadonlyField({required String label, required String initialValue}) {
+  Widget _buildReadonlyField({
+    required String label,
+    required String initialValue,
+  }) {
     return TextFormField(
       initialValue: initialValue,
       readOnly: true,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.grey[200],
       ),
@@ -475,16 +512,12 @@ class _BookingFormPageState extends State<BookingFormPage> {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
       ),
     );
   }
-
-
 
   Future<void> _loadUserProfile() async {
     try {
@@ -538,16 +571,17 @@ class _BookingFormPageState extends State<BookingFormPage> {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('queues')
           .where('schedule_id', isEqualTo: schedule.id)
-          .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+          .where(
+            'appointment_date',
+            isEqualTo: Timestamp.fromDate(normalizedDate),
+          )
           .where('status', whereIn: ['menunggu', 'dipanggil', 'selesai'])
           .get();
-      
+
       final queueNumber = querySnapshot.docs.length + 1;
 
       // Create queue document
-      await FirebaseFirestore.instance
-          .collection('queues')
-          .add({
+      await FirebaseFirestore.instance.collection('queues').add({
         'patient_id': user.uid,
         'patient_name': userName ?? '',
         'patient_phone': userPhone ?? '',
@@ -570,9 +604,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
 
       if (!mounted) return;
 
-      // Navigate back first
-      Get.until((route) => route.settings.name == '/patient/queue');
-      
+      // Safe navigation: pop all pages until the first page (Dashboard) and then push Queue page
+      Get.offNamedUntil('/patient/queue', (route) => route.isFirst);
+
       // Then show success message after navigation
       Future.delayed(const Duration(milliseconds: 300), () {
         if (!mounted) return;
@@ -586,10 +620,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
           icon: const Icon(Icons.check_circle, color: Colors.green),
         );
       });
-      
     } catch (e) {
       if (!mounted) return;
-      
+
       Get.snackbar(
         'Error',
         'Gagal membuat antrean: ${e.toString()}',

@@ -13,7 +13,7 @@ import '../../domain/usecases/update_doctor.dart';
 import '../../domain/usecases/delete_doctor.dart';
 import '../../domain/usecases/search_doctors.dart';
 
-class DoctorController extends GetxController {
+class DoctorAdminController extends GetxController {
   final GetAllDoctors getAllDoctors;
   final GetDoctorById getDoctorById;
   final AddDoctor addDoctor;
@@ -22,7 +22,7 @@ class DoctorController extends GetxController {
   final SearchDoctors searchDoctors;
   final GetSpecializations getSpecializations;
 
-  DoctorController({
+  DoctorAdminController({
     required this.getAllDoctors,
     required this.getDoctorById,
     required this.addDoctor,
@@ -66,7 +66,7 @@ class DoctorController extends GetxController {
     super.onInit();
     loadDoctors();
     loadSpecializations();
-    
+
     // Listen to search changes
     searchController.addListener(() {
       if (searchController.text.isEmpty) {
@@ -161,10 +161,18 @@ class DoctorController extends GetxController {
       _filteredDoctors.value = _doctors;
     } else {
       _filteredDoctors.value = _doctors
-          .where((doctor) =>
-              doctor.namaLengkap.toLowerCase().contains(query.toLowerCase()) ||
-              doctor.spesialisasi.toLowerCase().contains(query.toLowerCase()) ||
-              doctor.nomorIdentifikasi.toLowerCase().contains(query.toLowerCase()))
+          .where(
+            (doctor) =>
+                doctor.namaLengkap.toLowerCase().contains(
+                  query.toLowerCase(),
+                ) ||
+                doctor.spesialisasi.toLowerCase().contains(
+                  query.toLowerCase(),
+                ) ||
+                doctor.nomorIdentifikasi.toLowerCase().contains(
+                  query.toLowerCase(),
+                ),
+          )
           .toList();
     }
     update();
@@ -215,8 +223,9 @@ class DoctorController extends GetxController {
       }
 
       // VALIDASI 4: Cek email sudah ada atau belum
-      final emailExists = await Get.find<DoctorAdminRepository>()
-          .isEmailExists(email);
+      final emailExists = await Get.find<DoctorAdminRepository>().isEmailExists(
+        email,
+      );
       if (emailExists) {
         _showError('Email sudah digunakan oleh dokter lain');
         return;
@@ -288,11 +297,10 @@ class DoctorController extends GetxController {
       }
 
       // VALIDASI 4: Cek email sudah ada atau belum (exclude current doctor)
-      final emailExists = await Get.find<DoctorAdminRepository>()
-          .isEmailExists(
-            email,
-            excludeDoctorId: id,
-          );
+      final emailExists = await Get.find<DoctorAdminRepository>().isEmailExists(
+        email,
+        excludeDoctorId: id,
+      );
       if (emailExists) {
         _showError('Email sudah digunakan oleh dokter lain');
         return;
@@ -327,16 +335,16 @@ class DoctorController extends GetxController {
     int scheduleCount = 0;
     int queueCount = 0;
     String? doctorUserId;
-    
+
     try {
       final firestore = Get.find<FirebaseFirestore>();
-      
+
       // Dapatkan userId dokter terlebih dahulu
       final doctorDoc = await firestore.collection('doctors').doc(id).get();
       if (doctorDoc.exists) {
         doctorUserId = doctorDoc.data()?['user_id'] as String?;
       }
-      
+
       // Hitung jadwal berdasarkan userId (bukan document id)
       if (doctorUserId != null && doctorUserId.isNotEmpty) {
         final schedulesSnapshot = await firestore
@@ -344,7 +352,7 @@ class DoctorController extends GetxController {
             .where('doctor_id', isEqualTo: doctorUserId)
             .get();
         scheduleCount = schedulesSnapshot.docs.length;
-        
+
         // Hitung antrean
         for (final scheduleDoc in schedulesSnapshot.docs) {
           final queuesSnapshot = await firestore
@@ -353,7 +361,7 @@ class DoctorController extends GetxController {
               .get();
           queueCount += queuesSnapshot.docs.length;
         }
-        
+
         // Hitung antrean langsung terkait dokter userId
         final doctorQueuesSnapshot = await firestore
             .collection('queues')
@@ -367,9 +375,7 @@ class DoctorController extends GetxController {
 
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Container(
@@ -388,10 +394,7 @@ class DoctorController extends GetxController {
             const Expanded(
               child: Text(
                 'Hapus Data Dokter?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -402,10 +405,7 @@ class DoctorController extends GetxController {
           children: [
             Text(
               'Anda akan menghapus data dokter:',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
             const SizedBox(height: 8),
             Container(
@@ -443,7 +443,11 @@ class DoctorController extends GetxController {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.info_outline, color: Color(0xFFEF4444), size: 18),
+                      Icon(
+                        Icons.info_outline,
+                        color: Color(0xFFEF4444),
+                        size: 18,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'PERHATIAN!',
@@ -458,17 +462,20 @@ class DoctorController extends GetxController {
                   const SizedBox(height: 8),
                   Text(
                     'Data berikut juga akan dihapus:',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
                   ),
                   const SizedBox(height: 6),
-                  _buildDeleteInfoRow(Icons.calendar_today, '$scheduleCount jadwal praktek'),
+                  _buildDeleteInfoRow(
+                    Icons.calendar_today,
+                    '$scheduleCount jadwal praktek',
+                  ),
                   const SizedBox(height: 4),
                   _buildDeleteInfoRow(Icons.people, '$queueCount data antrean'),
                   const SizedBox(height: 4),
-                  _buildDeleteInfoRow(Icons.account_circle, 'Akun login dokter'),
+                  _buildDeleteInfoRow(
+                    Icons.account_circle,
+                    'Akun login dokter',
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Tindakan ini tidak dapat dibatalkan!',
@@ -496,7 +503,10 @@ class DoctorController extends GetxController {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Hapus Permanen', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Hapus Permanen',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -509,7 +519,9 @@ class DoctorController extends GetxController {
       final doctorRepo = Get.find<DoctorAdminRepository>();
       await doctorRepo.permanentlyDeleteDoctor(id);
       await loadDoctors(); // Refresh list
-      _showSuccess('Dokter beserta $scheduleCount jadwal dan $queueCount antrean berhasil dihapus');
+      _showSuccess(
+        'Dokter beserta $scheduleCount jadwal dan $queueCount antrean berhasil dihapus',
+      );
     } catch (e) {
       _showError('Gagal menghapus dokter: ${e.toString()}');
     } finally {
@@ -522,13 +534,7 @@ class DoctorController extends GetxController {
       children: [
         Icon(icon, size: 14, color: Colors.grey[600]),
         const SizedBox(width: 6),
-        Text(
-          text,
-          style: TextStyle(
-            color: Colors.grey[700],
-            fontSize: 13,
-          ),
-        ),
+        Text(text, style: TextStyle(color: Colors.grey[700], fontSize: 13)),
       ],
     );
   }
@@ -538,7 +544,7 @@ class DoctorController extends GetxController {
     try {
       _isLoading.value = true;
       final doctor = await getDoctorById(id);
-      
+
       if (doctor != null) {
         _currentDoctor.value = doctor;
         _populateForm(doctor);
@@ -585,20 +591,24 @@ class DoctorController extends GetxController {
 
     // Untuk add: perlu password, untuk edit: tidak perlu password
     final isAddMode = _currentDoctor.value == null;
-    
+
     // Validasi email format dan domain @pens.ac.id
-    final isEmailValid = GetUtils.isEmail(email) && email.endsWith('@pens.ac.id');
-    
+    final isEmailValid =
+        GetUtils.isEmail(email) && email.endsWith('@pens.ac.id');
+
     // Validasi nomor telepon (hanya angka, minimal 10 digit)
-    final isPhoneValid = phone.isNotEmpty && 
-                         RegExp(r'^[0-9]{10,15}$').hasMatch(phone);
-    
-    _isFormValid.value = name.isNotEmpty &&
+    final isPhoneValid =
+        phone.isNotEmpty && RegExp(r'^[0-9]{10,15}$').hasMatch(phone);
+
+    _isFormValid.value =
+        name.isNotEmpty &&
         identification.isNotEmpty &&
         isPhoneValid &&
         isEmailValid &&
         specialization.isNotEmpty &&
-        (isAddMode ? password.length >= 6 : true); // Password minimal 6 karakter untuk add
+        (isAddMode
+            ? password.length >= 6
+            : true); // Password minimal 6 karakter untuk add
   }
 
   // Show error message
@@ -646,7 +656,7 @@ class DoctorController extends GetxController {
 
   // Future<void> toggleDoctorStatus(String id, bool currentStatus) async {
   //   final action = currentStatus ? 'menonaktifkan' : 'mengaktifkan';
-    
+
   //   final confirmed = await Get.dialog<bool>(
   //     AlertDialog(
   //       title: Text('Konfirmasi ${currentStatus ? 'Nonaktifkan' : 'Aktifkan'}'),
@@ -659,7 +669,7 @@ class DoctorController extends GetxController {
   //         ElevatedButton(
   //           onPressed: () => Get.back(result: true),
   //           style: ElevatedButton.styleFrom(
-  //             backgroundColor: currentStatus 
+  //             backgroundColor: currentStatus
   //                 ? const Color(0xFFEF4444)
   //                 : const Color(0xFF10B981),
   //           ),
@@ -676,7 +686,7 @@ class DoctorController extends GetxController {
 
   //   try {
   //     _isLoading.value = true;
-      
+
   //     final doctorRepo = Get.find<DoctorAdminRepository>();
   //     if (currentStatus) {
   //       // Hanya mengubah status aktif
@@ -685,10 +695,10 @@ class DoctorController extends GetxController {
   //       // Aktivasi dokter
   //       await doctorRepo.updateDoctorStatus(id, true);
   //     }
-      
+
   //     await loadDoctors(); // Refresh list
-  //     _showSuccess(currentStatus 
-  //         ? 'Dokter berhasil dinonaktifkan' 
+  //     _showSuccess(currentStatus
+  //         ? 'Dokter berhasil dinonaktifkan'
   //         : 'Dokter berhasil diaktifkan');
   //   } catch (e) {
   //     _showError('Gagal ${currentStatus ? 'menonaktifkan' : 'mengaktifkan'} dokter: ${e.toString()}');

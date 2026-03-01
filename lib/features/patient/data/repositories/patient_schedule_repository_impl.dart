@@ -1,4 +1,5 @@
 import '../../domain/entities/schedule_entity.dart';
+import '../../domain/entities/schedule_date_availability.dart';
 import '../../domain/repositories/patient_schedule_repository.dart';
 import '../datasources/schedule_remote_datasource.dart';
 
@@ -25,5 +26,18 @@ class PatientScheduleRepositoryImpl implements PatientScheduleRepository {
   @override
   Stream<List<ScheduleEntity>> getSchedulesByDayStream(String day) {
     return remoteDataSource.getSchedulesByDayStream(day);
+  }
+
+  @override
+  Stream<List<ScheduleDateAvailability>> getScheduleDatesStream(
+    String scheduleId,
+    List<DateTime> upcomingDates,
+    int maxPatients,
+  ) {
+    return remoteDataSource.getScheduleDatesStream(
+      scheduleId,
+      upcomingDates,
+      maxPatients,
+    );
   }
 }

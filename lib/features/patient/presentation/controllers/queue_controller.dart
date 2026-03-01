@@ -14,7 +14,7 @@ class QueueController extends GetxController {
   // Observable variables
   final Rxn<QueueEntity> _activeQueue = Rxn<QueueEntity>();
   final RxBool _isLoading = false.obs;
-  
+
   // Stream subscription
   StreamSubscription? _queueSubscription;
 
@@ -40,9 +40,9 @@ class QueueController extends GetxController {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _queueSubscription?.cancel();
-      _queueSubscription = repository
-          .watchActiveQueue(user.uid)
-          .listen((queue) {
+      _queueSubscription = repository.watchActiveQueue(user.uid).listen((
+        queue,
+      ) {
         _activeQueue.value = queue;
       });
     }
@@ -127,7 +127,9 @@ class QueueController extends GetxController {
     try {
       final confirmed = await Get.dialog<bool>(
         AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text(
             'Batalkan Antrean?',
             style: TextStyle(fontWeight: FontWeight.bold),
@@ -138,16 +140,11 @@ class QueueController extends GetxController {
           actions: [
             TextButton(
               onPressed: () => Get.back(result: false),
-              child: Text(
-                'Tidak',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
+              child: Text('Tidak', style: TextStyle(color: Colors.grey[600])),
             ),
             ElevatedButton(
               onPressed: () => Get.back(result: true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text(
                 'Ya, Batalkan',
                 style: TextStyle(color: Colors.white),
@@ -193,56 +190,8 @@ class QueueController extends GetxController {
 
   // Navigate to booking form
   void navigateToBookingForm(ScheduleEntity schedule) {
-    // Ensure the schedule.date sent to booking corresponds to a real upcoming
-    // date that matches one of the schedule.daysOfWeek values. The UI that
-    // selects a day passes selectedDay, but callers here may not — so compute
-    // the nearest date for the first supported day in schedule.daysOfWeek.
-    DateTime now = DateTime.now();
-    DateTime appointmentDate = schedule.date;
-    try {
-      if (schedule.daysOfWeek.isNotEmpty) {
-        // Map Indonesian day names to weekday ints
-        final map = {
-          'Senin': DateTime.monday,
-          'Selasa': DateTime.tuesday,
-          'Rabu': DateTime.wednesday,
-          'Kamis': DateTime.thursday,
-          'Jumat': DateTime.friday,
-          'Sabtu': DateTime.saturday,
-          'Minggu': DateTime.sunday,
-        };
-        // Try to compute nearest date for a supported day (prefer near future)
-        DateTime? best;
-        for (final dayName in schedule.daysOfWeek) {
-          final target = map[dayName];
-          if (target == null) continue;
-          int daysUntil = (target - now.weekday) % 7;
-          if (daysUntil < 0) daysUntil += 7;
-          final candidate = DateTime(now.year, now.month, now.day).add(Duration(days: daysUntil));
-          // choose the earliest candidate >= today
-          if (best == null || candidate.isBefore(best)) best = candidate;
-        }
-        if (best != null) appointmentDate = best;
-      }
-    } catch (_) {
-      // fallback to schedule.date on any error
-      appointmentDate = schedule.date;
-    }
-
-    final fixed = ScheduleEntity(
-      id: schedule.id,
-      doctorId: schedule.doctorId,
-      doctorName: schedule.doctorName,
-      doctorSpecialization: schedule.doctorSpecialization,
-      date: appointmentDate,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-      daysOfWeek: schedule.daysOfWeek,
-      maxPatients: schedule.maxPatients,
-      currentPatients: schedule.currentPatients,
-      isActive: schedule.isActive,
-    );
-
-    Get.toNamed('/patient/booking', arguments: fixed);
+    // The schedule passed here from BookingDatePickerSheet already has the
+    // exact selected date and real-time currentPatients count.
+    Get.toNamed('/patient/booking', arguments: schedule);
   }
 }

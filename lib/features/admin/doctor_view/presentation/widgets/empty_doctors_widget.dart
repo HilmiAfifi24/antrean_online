@@ -7,7 +7,7 @@ class EmptyDoctorsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<DoctorController>(
+    return GetBuilder<DoctorAdminController>(
       builder: (controller) {
         return Center(
           child: Padding(
@@ -21,10 +21,7 @@ class EmptyDoctorsWidget extends StatelessWidget {
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.elasticOut,
                   builder: (context, value, child) {
-                    return Transform.scale(
-                      scale: value,
-                      child: child,
-                    );
+                    return Transform.scale(scale: value, child: child);
                   },
                   child: Container(
                     width: 140,
@@ -60,9 +57,9 @@ class EmptyDoctorsWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Title with fade animation
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
@@ -89,19 +86,16 @@ class EmptyDoctorsWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Subtitle
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
                   duration: const Duration(milliseconds: 1000),
                   curve: Curves.easeOut,
                   builder: (context, value, child) {
-                    return Opacity(
-                      opacity: value,
-                      child: child,
-                    );
+                    return Opacity(opacity: value, child: child);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -124,9 +118,9 @@ class EmptyDoctorsWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Action Button
                 if (controller.searchController.text.isNotEmpty)
                   Material(
@@ -148,7 +142,9 @@ class EmptyDoctorsWidget extends StatelessWidget {
                           ),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFFEF4444,
+                            ).withValues(alpha: 0.3),
                             width: 2,
                           ),
                         ),
@@ -178,10 +174,7 @@ class EmptyDoctorsWidget extends StatelessWidget {
                   Container(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF3B82F6),
-                          Color(0xFF2563EB),
-                        ],
+                        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
                       ),
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [

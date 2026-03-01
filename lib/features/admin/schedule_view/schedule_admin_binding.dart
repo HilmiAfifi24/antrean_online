@@ -4,7 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:antrean_online/features/admin/schedule_view/data/datasources/schedule_admin_remote_datsource.dart';
 import 'package:antrean_online/features/admin/schedule_view/data/repositories/schedule_admin_repository_impl.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/repositories/schedule_admin_repository.dart';
-import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_all_schedules.dart' as schedule_admin_usecases;
+import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_all_schedules.dart'
+    as schedule_admin_usecases;
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_schedule_by_id.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/add_schedule.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/update_schedule.dart';
@@ -17,7 +18,15 @@ import 'package:antrean_online/features/admin/doctor_view/domain/usecases/get_al
 import 'package:antrean_online/features/admin/doctor_view/data/datasources/doctor_admin_remote_datasource.dart';
 import 'package:antrean_online/features/admin/doctor_view/data/repositories/doctor_admin_repository_impl.dart';
 import 'package:antrean_online/features/admin/doctor_view/domain/repositories/doctor_admin_repository.dart';
-import 'package:antrean_online/features/admin/notification/presentation/bindings/notification_binding.dart';
+import 'package:antrean_online/features/admin/notification/presentation/controllers/notification_controller.dart';
+import 'package:antrean_online/core/config/fonnte_config.dart';
+import 'package:antrean_online/features/admin/notification/data/datasources/notification_remote_datasource.dart';
+import 'package:antrean_online/features/admin/notification/data/repositories/notification_repository_impl.dart';
+import 'package:antrean_online/features/admin/notification/domain/usecases/send_queue_opened_notifications.dart';
+import 'package:antrean_online/features/admin/notification/domain/usecases/send_practice_started_notifications.dart';
+import 'package:antrean_online/features/admin/notification/domain/usecases/process_pending_notifications.dart';
+import 'package:http/io_client.dart';
+import 'dart:io';
 
 class ScheduleBinding extends Bindings {
   @override
@@ -65,18 +74,44 @@ class ScheduleBinding extends Bindings {
     }
 
     // Use Cases Layer - Schedule
-    Get.put(schedule_admin_usecases.GetAllSchedules(Get.find<ScheduleAdminRepository>()), permanent: true);
-    Get.put(GetScheduleById(Get.find<ScheduleAdminRepository>()), permanent: true);
+    Get.put(
+      schedule_admin_usecases.GetAllSchedules(
+        Get.find<ScheduleAdminRepository>(),
+      ),
+      permanent: true,
+    );
+    Get.put(
+      GetScheduleById(Get.find<ScheduleAdminRepository>()),
+      permanent: true,
+    );
     Get.put(AddSchedule(Get.find<ScheduleAdminRepository>()), permanent: true);
-    Get.put(UpdateSchedule(Get.find<ScheduleAdminRepository>()), permanent: true);
-    Get.put(DeleteSchedule(Get.find<ScheduleAdminRepository>()), permanent: true);
-    Get.put(ActivateSchedule(Get.find<ScheduleAdminRepository>()), permanent: true);
-    Get.put(SearchSchedules(Get.find<ScheduleAdminRepository>()), permanent: true);
-    Get.put(GetSchedulesByDoctor(Get.find<ScheduleAdminRepository>()), permanent: true);
+    Get.put(
+      UpdateSchedule(Get.find<ScheduleAdminRepository>()),
+      permanent: true,
+    );
+    Get.put(
+      DeleteSchedule(Get.find<ScheduleAdminRepository>()),
+      permanent: true,
+    );
+    Get.put(
+      ActivateSchedule(Get.find<ScheduleAdminRepository>()),
+      permanent: true,
+    );
+    Get.put(
+      SearchSchedules(Get.find<ScheduleAdminRepository>()),
+      permanent: true,
+    );
+    Get.put(
+      GetSchedulesByDoctor(Get.find<ScheduleAdminRepository>()),
+      permanent: true,
+    );
 
     // Use Cases Layer - Doctor (needed for schedule controller)
     if (!Get.isRegistered<GetAllDoctors>()) {
-      Get.put(GetAllDoctors(Get.find<DoctorAdminRepository>()), permanent: true);
+      Get.put(
+        GetAllDoctors(Get.find<DoctorAdminRepository>()),
+        permanent: true,
+      );
     }
 
     // Controller Layer
@@ -94,8 +129,43 @@ class ScheduleBinding extends Bindings {
       ),
       permanent: true,
     );
-    
-    // Initialize Notification Binding
-    NotificationBinding().dependencies();
+
+    // Initialize Notification services directly to avoid 'not found' errors in dialogs
+    Get.put<NotificationController>(
+      NotificationController(
+        sendQueueOpenedNotifications: Get.put(
+          SendQueueOpenedNotifications(
+            Get.put(
+              NotificationRepositoryImpl(
+                remoteDataSource: Get.put(
+                  NotificationRemoteDataSourceImpl(
+                    fonnteApiToken: FonnteConfig.apiToken,
+                    fonnteBaseUrl: FonnteConfig.baseUrl,
+                    client: IOClient(
+                      HttpClient()
+                        ..connectionTimeout = const Duration(seconds: 30)
+                        ..badCertificateCallback =
+                            (X509Certificate cert, String host, int port) =>
+                                host == 'api.fonnte.com',
+                    ),
+                    firestore: FirebaseFirestore.instance,
+                  ),
+                ),
+                firestore: FirebaseFirestore.instance,
+              ),
+            ),
+          ),
+        ),
+        sendPracticeStartedNotifications: Get.put(
+          SendPracticeStartedNotifications(
+            Get.find<NotificationRepositoryImpl>(),
+          ),
+        ),
+        processPendingNotifications: Get.put(
+          ProcessPendingNotifications(Get.find<NotificationRepositoryImpl>()),
+        ),
+      ),
+      permanent: true,
+    );
   }
 }
