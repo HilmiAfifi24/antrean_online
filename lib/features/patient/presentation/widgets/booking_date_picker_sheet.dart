@@ -196,12 +196,14 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                             import_queue_binding.QueueBinding().dependencies();
                           }
 
-                          // Check if user already has an active queue BEFORE checking availability
                           var queueController = Get.find<QueueController>();
                           if (queueController.hasActiveQueue) {
+                            final activeDate =
+                                queueController.activeQueue?.formattedDate ??
+                                '';
                             Get.snackbar(
                               'Gagal',
-                              'Anda sudah memiliki antrean aktif. Silakan selesaikan atau batalkan antrean sebelumnya.',
+                              'Anda sudah memiliki antrean aktif pada tanggal $activeDate. Silakan selesaikan atau batalkan antrean sebelumnya.',
                               snackPosition: SnackPosition.TOP,
                               backgroundColor: Colors.orange[50]!,
                               colorText: Colors.orange[900]!,

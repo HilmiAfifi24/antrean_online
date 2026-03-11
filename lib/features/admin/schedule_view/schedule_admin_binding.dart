@@ -131,41 +131,68 @@ class ScheduleBinding extends Bindings {
     );
 
     // Initialize Notification services directly to avoid 'not found' errors in dialogs
-    Get.put<NotificationController>(
-      NotificationController(
-        sendQueueOpenedNotifications: Get.put(
-          SendQueueOpenedNotifications(
-            Get.put(
-              NotificationRepositoryImpl(
-                remoteDataSource: Get.put(
-                  NotificationRemoteDataSourceImpl(
-                    fonnteApiToken: FonnteConfig.apiToken,
-                    fonnteBaseUrl: FonnteConfig.baseUrl,
-                    client: IOClient(
-                      HttpClient()
-                        ..connectionTimeout = const Duration(seconds: 30)
-                        ..badCertificateCallback =
-                            (X509Certificate cert, String host, int port) =>
-                                host == 'api.fonnte.com',
-                    ),
-                    firestore: FirebaseFirestore.instance,
-                  ),
-                ),
-                firestore: FirebaseFirestore.instance,
-              ),
-            ),
+    if (!Get.isRegistered<NotificationRemoteDataSource>()) {
+      Get.put<NotificationRemoteDataSource>(
+        NotificationRemoteDataSourceImpl(
+          fonnteApiToken: FonnteConfig.apiToken,
+          fonnteBaseUrl: FonnteConfig.baseUrl,
+          client: IOClient(
+            HttpClient()
+              ..connectionTimeout = const Duration(seconds: 30)
+              ..badCertificateCallback =
+                  (X509Certificate cert, String host, int port) =>
+                      host == 'api.fonnte.com',
           ),
+          firestore: FirebaseFirestore.instance,
         ),
-        sendPracticeStartedNotifications: Get.put(
-          SendPracticeStartedNotifications(
-            Get.find<NotificationRepositoryImpl>(),
-          ),
+        permanent: true,
+      );
+    }
+
+    if (!Get.isRegistered<NotificationRepositoryImpl>()) {
+      Get.put<NotificationRepositoryImpl>(
+        NotificationRepositoryImpl(
+          remoteDataSource: Get.find<NotificationRemoteDataSource>(),
+          firestore: FirebaseFirestore.instance,
         ),
-        processPendingNotifications: Get.put(
-          ProcessPendingNotifications(Get.find<NotificationRepositoryImpl>()),
+        permanent: true,
+      );
+    }
+
+    if (!Get.isRegistered<SendQueueOpenedNotifications>()) {
+      Get.put<SendQueueOpenedNotifications>(
+        SendQueueOpenedNotifications(Get.find<NotificationRepositoryImpl>()),
+        permanent: true,
+      );
+    }
+
+    if (!Get.isRegistered<SendPracticeStartedNotifications>()) {
+      Get.put<SendPracticeStartedNotifications>(
+        SendPracticeStartedNotifications(
+          Get.find<NotificationRepositoryImpl>(),
         ),
-      ),
-      permanent: true,
-    );
+        permanent: true,
+      );
+    }
+
+    if (!Get.isRegistered<ProcessPendingNotifications>()) {
+      Get.put<ProcessPendingNotifications>(
+        ProcessPendingNotifications(Get.find<NotificationRepositoryImpl>()),
+        permanent: true,
+      );
+    }
+
+    if (!Get.isRegistered<NotificationController>()) {
+      Get.put<NotificationController>(
+        NotificationController(
+          sendQueueOpenedNotifications:
+              Get.find<SendQueueOpenedNotifications>(),
+          sendPracticeStartedNotifications:
+              Get.find<SendPracticeStartedNotifications>(),
+          processPendingNotifications: Get.find<ProcessPendingNotifications>(),
+        ),
+        permanent: true,
+      );
+    }
   }
 }

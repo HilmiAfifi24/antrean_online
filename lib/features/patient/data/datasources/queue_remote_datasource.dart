@@ -24,6 +24,25 @@ class QueueRemoteDataSource {
       final doc = querySnapshot.docs.first;
       final data = doc.data();
 
+      // Check for expiration
+      final appointmentDate = data['appointment_date'] != null
+          ? (data['appointment_date'] as Timestamp).toDate()
+          : DateTime.now();
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final appointmentDay = DateTime(
+        appointmentDate.year,
+        appointmentDate.month,
+        appointmentDate.day,
+      );
+
+      if (appointmentDay.isBefore(today)) {
+        // Auto-cancel expired queue
+        await cancelQueue(doc.id, data['schedule_id'] ?? '');
+        return null;
+      }
+
       return QueueEntity(
         id: doc.id,
         patientId: data['patient_id'] ?? '',
@@ -32,7 +51,7 @@ class QueueRemoteDataSource {
         doctorId: data['doctor_id'] ?? '',
         doctorName: data['doctor_name'] ?? '',
         doctorSpecialization: data['doctor_specialization'] ?? '',
-        appointmentDate: data['appointment_date'] != null 
+        appointmentDate: data['appointment_date'] != null
             ? (data['appointment_date'] as Timestamp).toDate()
             : DateTime.now(),
         appointmentTime: data['appointment_time'] ?? '',
@@ -73,7 +92,10 @@ class QueueRemoteDataSource {
       final scheduleQueues = await firestore
           .collection('queues')
           .where('schedule_id', isEqualTo: scheduleId)
-          .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+          .where(
+            'appointment_date',
+            isEqualTo: Timestamp.fromDate(normalizedDate),
+          )
           .where('status', whereIn: ['menunggu', 'dipanggil', 'selesai'])
           .get();
 
@@ -94,9 +116,6 @@ class QueueRemoteDataSource {
         'complaint': complaint,
         'created_at': FieldValue.serverTimestamp(),
       });
-
-      // NOTE: Do NOT update a global 'current_patients' on the schedule here.
-      // Booking counts should be calculated per (schedule_id + appointment_date).
 
       return QueueEntity(
         id: docRef.id,
@@ -133,9 +152,6 @@ class QueueRemoteDataSource {
 
   // Stream active queue
   Stream<QueueEntity?> watchActiveQueue(String patientId) {
-    // Add defensive error handling to the stream to avoid throwing when Firestore
-    // returns FAILED_PRECONDITION (missing composite index). The stream will
-    // emit null on error so callers can handle absence of data gracefully.
     return firestore
         .collection('queues')
         .where('patient_id', isEqualTo: patientId)
@@ -144,37 +160,56 @@ class QueueRemoteDataSource {
         .limit(1)
         .snapshots()
         .handleError((error) {
-      // Swallow Firestore index errors here and log for diagnostics.
-      // Do not rethrow to avoid crashing the stream consumers.
-      // ignore: avoid_print
-      print('[QueueRemoteDataSource] watchActiveQueue stream error: $error');
-    }).map((snapshot) {
-      if (snapshot.docs.isEmpty) {
-        return null;
-      }
+          // print(
+          //   '[QueueRemoteDataSource] watchActiveQueue stream error: $error',
+          // );
+        })
+        .asyncMap((snapshot) async {
+          if (snapshot.docs.isEmpty) {
+            return null;
+          }
 
-      final doc = snapshot.docs.first;
-      final data = doc.data();
+          final doc = snapshot.docs.first;
+          final data = doc.data();
 
-      return QueueEntity(
-        id: doc.id,
-        patientId: data['patient_id'] ?? '',
-        patientName: data['patient_name'] ?? '',
-        scheduleId: data['schedule_id'] ?? '',
-        doctorId: data['doctor_id'] ?? '',
-        doctorName: data['doctor_name'] ?? '',
-        doctorSpecialization: data['doctor_specialization'] ?? '',
-        appointmentDate: data['appointment_date'] != null 
-            ? (data['appointment_date'] as Timestamp).toDate()
-            : DateTime.now(),
-        appointmentTime: data['appointment_time'] ?? '',
-        queueNumber: data['queue_number'] ?? 0,
-        status: data['status'] ?? 'menunggu',
-        complaint: data['complaint'] ?? '',
-        createdAt: data['created_at'] != null
-            ? (data['created_at'] as Timestamp).toDate()
-            : DateTime.now(),
-      );
-    });
+          // Check for expiration
+          final appointmentDate = data['appointment_date'] != null
+              ? (data['appointment_date'] as Timestamp).toDate()
+              : DateTime.now();
+
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final appointmentDay = DateTime(
+            appointmentDate.year,
+            appointmentDate.month,
+            appointmentDate.day,
+          );
+
+          if (appointmentDay.isBefore(today)) {
+            // Auto-cancel expired queue
+            await cancelQueue(doc.id, data['schedule_id'] ?? '');
+            return null;
+          }
+
+          return QueueEntity(
+            id: doc.id,
+            patientId: data['patient_id'] ?? '',
+            patientName: data['patient_name'] ?? '',
+            scheduleId: data['schedule_id'] ?? '',
+            doctorId: data['doctor_id'] ?? '',
+            doctorName: data['doctor_name'] ?? '',
+            doctorSpecialization: data['doctor_specialization'] ?? '',
+            appointmentDate: data['appointment_date'] != null
+                ? (data['appointment_date'] as Timestamp).toDate()
+                : DateTime.now(),
+            appointmentTime: data['appointment_time'] ?? '',
+            queueNumber: data['queue_number'] ?? 0,
+            status: data['status'] ?? 'menunggu',
+            complaint: data['complaint'] ?? '',
+            createdAt: data['created_at'] != null
+                ? (data['created_at'] as Timestamp).toDate()
+                : DateTime.now(),
+          );
+        });
   }
 }
