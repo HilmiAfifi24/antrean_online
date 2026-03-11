@@ -47,13 +47,34 @@ class QueueEntity {
 
   String get formattedDate {
     final months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
     return '${appointmentDate.day} ${months[appointmentDate.month - 1]} ${appointmentDate.year}';
   }
 
+  bool get isExpired {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final appointmentDay = DateTime(
+      appointmentDate.year,
+      appointmentDate.month,
+      appointmentDate.day,
+    );
+    return appointmentDay.isBefore(today);
+  }
+
   bool get isActive {
-    return status == 'menunggu' || status == 'dipanggil';
+    return (status == 'menunggu' || status == 'dipanggil') && !isExpired;
   }
 }
