@@ -18,6 +18,9 @@ class DoctorController extends GetxController {
   final RxInt _completedPatientsToday = 0.obs;
   final RxInt _waitingPatientsToday = 0.obs;
 
+  // Date selection
+  final Rx<DateTime> _selectedDate = DateTime.now().obs;
+
   // Getters
   String get doctorName => _doctorName.value;
   String get doctorSpecialization => _doctorSpecialization.value;
@@ -29,6 +32,14 @@ class DoctorController extends GetxController {
   int get totalPatientsToday => _totalPatientsToday.value;
   int get completedPatientsToday => _completedPatientsToday.value;
   int get waitingPatientsToday => _waitingPatientsToday.value;
+
+  DateTime get selectedDate => _selectedDate.value;
+  bool get isTodaySelected {
+    final now = DateTime.now();
+    return _selectedDate.value.year == now.year &&
+        _selectedDate.value.month == now.month &&
+        _selectedDate.value.day == now.day;
+  }
 
   // Greeting based on time
   String get greeting {
@@ -114,8 +125,12 @@ class DoctorController extends GetxController {
       final user = _auth.currentUser;
       if (user == null) return;
 
-      final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
+      final targetDate = _selectedDate.value;
+      final startOfDay = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+      );
 
       // Get all queues for this doctor today
       final queuesSnapshot = await _firestore
@@ -146,10 +161,14 @@ class DoctorController extends GetxController {
       _isLoading.value = true;
 
       final user = _auth.currentUser;
-      if (user == null) return;
+      if (user == null || !isTodaySelected) return;
 
-      final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
+      final targetDate = _selectedDate.value;
+      final startOfDay = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+      );
 
       // Find next waiting patient
       final waitingQueues = await _firestore
@@ -202,10 +221,14 @@ class DoctorController extends GetxController {
       _isLoading.value = true;
 
       final user = _auth.currentUser;
-      if (user == null) return;
+      if (user == null || !isTodaySelected) return;
 
-      final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
+      final targetDate = _selectedDate.value;
+      final startOfDay = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+      );
 
       // Find currently called patient
       final calledQueues = await _firestore
@@ -309,5 +332,50 @@ class DoctorController extends GetxController {
   // Refresh all data
   Future<void> refreshData() async {
     await Future.wait([_loadDoctorData(), _loadQueueStats()]);
+  }
+
+  // Handle date selection
+  void selectDate(DateTime date) {
+    _selectedDate.value = date;
+    refreshData();
+  }
+
+  // Mark absence for selected date
+  Future<void> markAbsenceForSelectedDate() async {
+    try {
+      _isLoading.value = true;
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final targetDate = _selectedDate.value;
+      final startOfDay = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+      );
+
+      // Save to doctor_absences collection
+      await _firestore.collection('doctor_absences').add({
+        'doctor_id': user.uid,
+        'doctor_name': _doctorName.value,
+        'date': Timestamp.fromDate(startOfDay),
+        'created_at': FieldValue.serverTimestamp(),
+        'status': 'reported', // e.g., 'reported', 'processed_by_admin'
+      });
+
+      Get.snackbar(
+        'Berhasil',
+        'Jadwal libur berhasil dikonfirmasi. Admin akan menginformasikan antrean pasien.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Gagal menandai jadwal: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      _isLoading.value = false;
+    }
   }
 }
