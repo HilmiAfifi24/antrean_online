@@ -278,9 +278,202 @@ class DoctorHomePage extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          // Date Picker & Mark Absence Row
+          _buildDatePickerRow(context, controller, isSmallScreen),
         ],
       ),
     );
+  }
+
+  Widget _buildDatePickerRow(
+    BuildContext context,
+    DoctorController controller,
+    bool isSmallScreen,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Jadwal Praktik',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+            ),
+            Obx(() {
+              if (controller.isTodaySelected) {
+                return const SizedBox();
+              }
+              return InkWell(
+                onTap: () {
+                  Get.defaultDialog(
+                    title: 'Konfirmasi Libur',
+                    titleStyle: const TextStyle(fontWeight: FontWeight.bold),
+                    middleText:
+                        'Apakah Anda yakin ingin menandai libur pada tanggal ini?\n\nAdmin akan diinfokan.',
+                    textConfirm: 'Ya, Tandai Libur',
+                    textCancel: 'Batal',
+                    confirmTextColor: Colors.white,
+                    buttonColor: Colors.redAccent,
+                    cancelTextColor: Colors.grey[800],
+                    onConfirm: () {
+                      Get.back();
+                      controller.markAbsenceForSelectedDate();
+                    },
+                  );
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.2),
+                    border: Border.all(
+                      color: Colors.redAccent.withValues(alpha: 0.5),
+                      width: 1,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.event_busy,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Tandai Libur',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 75,
+          child: Obx(() {
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            final selDate = controller.selectedDate;
+
+            return ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: 14, // Show next 14 days
+              itemBuilder: (context, index) {
+                final date = today.add(Duration(days: index));
+                final isSelected =
+                    date.year == selDate.year &&
+                    date.month == selDate.month &&
+                    date.day == selDate.day;
+
+                final dayName = _getDayName(date.weekday);
+
+                return GestureDetector(
+                  onTap: () => controller.selectDate(date),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    width: 60,
+                    margin: const EdgeInsets.only(
+                      right: 12,
+                      bottom: 4,
+                    ), // bottom margin for shadow
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : [],
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.transparent
+                            : Colors.white.withValues(alpha: 0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          dayName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: isSelected
+                                ? const Color(0xFF1976D2)
+                                : Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${date.day}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected
+                                ? const Color(0xFF1976D2)
+                                : Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  String _getDayName(int weekday) {
+    switch (weekday) {
+      case 1:
+        return 'Sen';
+      case 2:
+        return 'Sel';
+      case 3:
+        return 'Rab';
+      case 4:
+        return 'Kam';
+      case 5:
+        return 'Jum';
+      case 6:
+        return 'Sab';
+      case 7:
+        return 'Min';
+      default:
+        return '';
+    }
   }
 
   Widget _buildActionButtons(DoctorController controller, bool isSmallScreen) {
@@ -290,7 +483,7 @@ class DoctorHomePage extends StatelessWidget {
           flex: 2,
           child: Obx(
             () => ElevatedButton.icon(
-              onPressed: controller.isLoading
+              onPressed: (controller.isLoading || !controller.isTodaySelected)
                   ? null
                   : controller.callNextPatient,
               icon: const Icon(Icons.call, size: 20),
@@ -319,7 +512,7 @@ class DoctorHomePage extends StatelessWidget {
         Expanded(
           child: Obx(
             () => OutlinedButton.icon(
-              onPressed: controller.isLoading
+              onPressed: (controller.isLoading || !controller.isTodaySelected)
                   ? null
                   : controller.skipCurrentPatient,
               icon: const Icon(Icons.skip_next, size: 20),
@@ -353,99 +546,110 @@ class DoctorHomePage extends StatelessWidget {
       return const Center(child: Text('User tidak ditemukan'));
     }
 
-    final today = DateTime.now();
-    final startOfDay = DateTime(today.year, today.month, today.day);
+    final controller = Get.find<DoctorController>();
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('queues')
-          .where('doctor_id', isEqualTo: user.uid)
-          .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
-          .where('status', whereIn: ['menunggu', 'dipanggil'])
-          .orderBy('queue_number')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
+    return Obx(() {
+      final targetDate = controller.selectedDate;
+      final startOfDay = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+      );
 
-        if (snapshot.hasError) {
-          return Container(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
-                const SizedBox(height: 16),
-                const Text(
-                  'Gagal memuat daftar antrean',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Membuat index database...\nTunggu 5-10 menit',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Get.find<DoctorController>().refreshData();
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Coba Lagi'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2196F3),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              children: [
-                Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  'Tidak ada antrean pasien',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: snapshot.data!.docs.length,
-          itemBuilder: (context, index) {
-            final doc = snapshot.data!.docs[index];
-            final data = doc.data() as Map<String, dynamic>;
-            final queueNumber = data['queue_number'] ?? 0;
-            final patientName = data['patient_name'] ?? '';
-            final complaint = data['complaint'] ?? '';
-            final status = data['status'] ?? '';
-
-            return QueueCard(
-              queueNumber: queueNumber,
-              patientName: patientName,
-              complaint: complaint,
-              status: status,
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('queues')
+            .where('doctor_id', isEqualTo: user.uid)
+            .where(
+              'appointment_date',
+              isEqualTo: Timestamp.fromDate(startOfDay),
+            )
+            .where('status', whereIn: ['menunggu', 'dipanggil'])
+            .orderBy('queue_number')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: CircularProgressIndicator(),
+              ),
             );
-          },
-        );
-      },
-    );
+          }
+
+          if (snapshot.hasError) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Gagal memuat daftar antrean',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Membuat index database...\nTunggu 5-10 menit',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Get.find<DoctorController>().refreshData();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Coba Lagi'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Container(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Tidak ada antrean pasien',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final doc = snapshot.data!.docs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              final queueNumber = data['queue_number'] ?? 0;
+              final patientName = data['patient_name'] ?? '';
+              final complaint = data['complaint'] ?? '';
+              final status = data['status'] ?? '';
+
+              return QueueCard(
+                queueNumber: queueNumber,
+                patientName: patientName,
+                complaint: complaint,
+                status: status,
+              );
+            },
+          );
+        },
+      );
+    });
   }
 
   void _showProfileDialog(BuildContext context, DoctorController controller) {
