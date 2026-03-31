@@ -2,7 +2,7 @@ import '../../domain/entities/queue_entity.dart';
 
 abstract class PatientQueueRepository {
   Future<QueueEntity?> getActiveQueue(String patientId);
-  
+
   Future<QueueEntity> createQueue({
     required String patientId,
     required String patientName,
@@ -14,8 +14,10 @@ abstract class PatientQueueRepository {
     required String appointmentTime,
     required String complaint,
   });
-  
+
   Future<void> cancelQueue(String queueId, String scheduleId);
-  
+
   Stream<QueueEntity?> watchActiveQueue(String patientId);
+
+  Future<List<QueueEntity>> getQueueHistory(String patientId);
 }

@@ -25,6 +25,7 @@ import 'package:antrean_online/features/auth/presentation/pages/admin_page.dart'
 import 'package:antrean_online/features/patient/presentation/pages/patient_home_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/doctor_list_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/queue_page.dart';
+import 'package:antrean_online/features/patient/presentation/pages/queue_history_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/select_schedule_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/booking_form_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/profile_page.dart';
@@ -36,6 +37,7 @@ import 'package:antrean_online/features/patient/patient_binding.dart';
 import 'package:antrean_online/features/patient/doctor_list_binding.dart';
 import 'package:antrean_online/features/doctor/doctor_binding.dart'
     as doctor_binding;
+import 'package:antrean_online/features/patient/presentation/bindings/queue_history_binding.dart';
 import 'package:antrean_online/features/auth/presentation/pages/forgot_password_page.dart';
 
 class AppPages {
@@ -131,6 +133,11 @@ class AppPages {
       name: AppRoutes.queue,
       page: () => const QueuePage(),
       // Inherits QueueController from PatientBinding globally
+    ),
+    GetPage(
+      name: AppRoutes.queueHistory,
+      page: () => const QueueHistoryPage(),
+      binding: QueueHistoryBinding(),
     ),
     GetPage(
       name: AppRoutes.selectSchedule,

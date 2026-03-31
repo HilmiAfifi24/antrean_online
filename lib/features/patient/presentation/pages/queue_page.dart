@@ -11,7 +11,6 @@ class QueuePage extends GetView<QueueController> {
   const QueuePage({super.key});
 
   @override
-
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -45,9 +44,7 @@ class QueuePage extends GetView<QueueController> {
                     ),
                     child: Obx(() {
                       if (controller.isLoading) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
+                        return const Center(child: CircularProgressIndicator());
                       }
 
                       if (controller.hasActiveQueue) {
@@ -84,13 +81,23 @@ class QueuePage extends GetView<QueueController> {
             ),
           ),
           const SizedBox(width: 16),
-          const Text(
-            'Antrean Saya',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 0.5,
+          const Expanded(
+            child: Text(
+              'Antrean Saya',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: () => Get.toNamed('/patient/queue-history'),
+            icon: const Icon(Icons.history_rounded, color: Colors.white),
+            tooltip: 'Riwayat Antrean',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
             ),
           ),
         ],
@@ -105,11 +112,7 @@ class QueuePage extends GetView<QueueController> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.event_busy_rounded,
-              size: 120,
-              color: Colors.grey[300],
-            ),
+            Icon(Icons.event_busy_rounded, size: 120, color: Colors.grey[300]),
             const SizedBox(height: 24),
             Text(
               'Tidak ada Antrean',
@@ -147,6 +150,23 @@ class QueuePage extends GetView<QueueController> {
                 elevation: 2,
               ),
             ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => Get.toNamed('/patient/queue-history'),
+              icon: const Icon(Icons.history_rounded),
+              label: const Text('Lihat Riwayat'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1976D2),
+                side: const BorderSide(color: Color(0xFF1976D2), width: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -155,7 +175,7 @@ class QueuePage extends GetView<QueueController> {
 
   Widget _buildActiveQueueView() {
     final queue = controller.activeQueue!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -171,16 +191,16 @@ class QueuePage extends GetView<QueueController> {
                 .limit(1)
                 .snapshots()
                 .handleError((error) {
-              // Log error and let builder show friendly UI
-              // ignore: avoid_print
-              print('[QueuePage] currentQueue stream error: $error');
-            }),
+                  // Log error and let builder show friendly UI
+                  // ignore: avoid_print
+                  print('[QueuePage] currentQueue stream error: $error');
+                }),
             builder: (context, snapshot) {
               int? currentQueueNumber;
               if (snapshot.hasError) {
-                
                 // print('[QueuePage] currentQueue snapshot error: ${snapshot.error}');
-                if (!_indexSnackbarShown && snapshot.error.toString().contains('requires an index')) {
+                if (!_indexSnackbarShown &&
+                    snapshot.error.toString().contains('requires an index')) {
                   _indexSnackbarShown = true;
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     try {
@@ -199,7 +219,7 @@ class QueuePage extends GetView<QueueController> {
                 final doc = snapshot.data!.docs.first;
                 currentQueueNumber = doc['queue_number'] as int?;
               }
-              
+
               return Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -261,8 +281,8 @@ class QueuePage extends GetView<QueueController> {
                       ),
                     const SizedBox(height: 8),
                     Text(
-                      currentQueueNumber != null 
-                          ? 'Sedang dilayani' 
+                      currentQueueNumber != null
+                          ? 'Sedang dilayani'
                           : 'Belum ada yang dipanggil',
                       style: TextStyle(
                         fontSize: 12,
@@ -274,7 +294,7 @@ class QueuePage extends GetView<QueueController> {
               );
             },
           ),
-          
+
           // Queue Number Card
           Container(
             width: double.infinity,
@@ -312,7 +332,7 @@ class QueuePage extends GetView<QueueController> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Estimated waiting info
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
@@ -322,14 +342,19 @@ class QueuePage extends GetView<QueueController> {
                       .where('queue_number', isLessThan: queue.queueNumber)
                       .snapshots()
                       .handleError((error) {
-                    // ignore: avoid_print
-                    print('[QueuePage] waitingCount stream error: $error');
-                  }),
+                        // ignore: avoid_print
+                        print('[QueuePage] waitingCount stream error: $error');
+                      }),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       // ignore: avoid_print
-                      print('[QueuePage] waitingCount snapshot error: ${snapshot.error}');
-                      if (!_indexSnackbarShown && snapshot.error.toString().contains('requires an index')) {
+                      print(
+                        '[QueuePage] waitingCount snapshot error: ${snapshot.error}',
+                      );
+                      if (!_indexSnackbarShown &&
+                          snapshot.error.toString().contains(
+                            'requires an index',
+                          )) {
                         _indexSnackbarShown = true;
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           try {
@@ -383,7 +408,7 @@ class QueuePage extends GetView<QueueController> {
                     return const SizedBox.shrink();
                   },
                 ),
-                
+
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -405,35 +430,39 @@ class QueuePage extends GetView<QueueController> {
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Doctor Info Card
           _buildInfoCard(
             title: 'Informasi Dokter',
             children: [
               _buildInfoRow(Icons.person, 'Dokter', queue.doctorName),
               const SizedBox(height: 12),
-              _buildInfoRow(Icons.medical_services, 'Spesialisasi', 
-                  queue.doctorSpecialization),
+              _buildInfoRow(
+                Icons.medical_services,
+                'Spesialisasi',
+                queue.doctorSpecialization,
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Appointment Info Card
           _buildInfoCard(
             title: 'Informasi Janji Temu',
             children: [
-              _buildInfoRow(Icons.calendar_today, 'Tanggal', 
-                  queue.formattedDate),
+              _buildInfoRow(
+                Icons.calendar_today,
+                'Tanggal',
+                queue.formattedDate,
+              ),
               const SizedBox(height: 12),
-              _buildInfoRow(Icons.access_time, 'Waktu', 
-                  queue.appointmentTime),
+              _buildInfoRow(Icons.access_time, 'Waktu', queue.appointmentTime),
               const SizedBox(height: 12),
-              _buildInfoRow(Icons.note_alt, 'Keluhan', 
-                  queue.complaint),
+              _buildInfoRow(Icons.note_alt, 'Keluhan', queue.complaint),
             ],
           ),
           const SizedBox(height: 24),
-          
+
           // Cancel Button (only if status is 'menunggu')
           if (queue.status == 'menunggu')
             SizedBox(
@@ -505,10 +534,7 @@ class QueuePage extends GetView<QueueController> {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
               const SizedBox(height: 4),
               Text(
