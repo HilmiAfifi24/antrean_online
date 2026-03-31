@@ -212,4 +212,41 @@ class QueueRemoteDataSource {
           );
         });
   }
+
+  // Get queue history (selesai and dibatalkan)
+  Future<List<QueueEntity>> getQueueHistory(String patientId) async {
+    try {
+      final querySnapshot = await firestore
+          .collection('queues')
+          .where('patient_id', isEqualTo: patientId)
+          .where('status', whereIn: ['selesai', 'dibatalkan'])
+          .orderBy('created_at', descending: true)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return QueueEntity(
+          id: doc.id,
+          patientId: data['patient_id'] ?? '',
+          patientName: data['patient_name'] ?? '',
+          scheduleId: data['schedule_id'] ?? '',
+          doctorId: data['doctor_id'] ?? '',
+          doctorName: data['doctor_name'] ?? '',
+          doctorSpecialization: data['doctor_specialization'] ?? '',
+          appointmentDate: data['appointment_date'] != null
+              ? (data['appointment_date'] as Timestamp).toDate()
+              : DateTime.now(),
+          appointmentTime: data['appointment_time'] ?? '',
+          queueNumber: data['queue_number'] ?? 0,
+          status: data['status'] ?? 'selesai',
+          complaint: data['complaint'] ?? '',
+          createdAt: data['created_at'] != null
+              ? (data['created_at'] as Timestamp).toDate()
+              : DateTime.now(),
+        );
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get queue history: $e');
+    }
+  }
 }

@@ -46,4 +46,9 @@ class PatientQueueRepositoryImpl implements PatientQueueRepository {
   Stream<QueueEntity?> watchActiveQueue(String patientId) {
     return dataSource.watchActiveQueue(patientId);
   }
+
+  @override
+  Future<List<QueueEntity>> getQueueHistory(String patientId) {
+    return dataSource.getQueueHistory(patientId);
+  }
 }

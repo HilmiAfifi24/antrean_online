@@ -21,6 +21,7 @@ class AppRoutes {
   static const pasien = '/pasien';
   static const doctorList = '/patient/doctors';
   static const queue = '/patient/queue';
+  static const queueHistory = '/patient/queue-history';
   static const selectSchedule = '/patient/select-schedule';
   static const booking = '/patient/booking';
   static const profile = '/patient/profile';
