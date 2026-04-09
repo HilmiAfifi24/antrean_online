@@ -372,42 +372,97 @@ class QueuePage extends GetView<QueueController> {
 
                     if (snapshot.hasData) {
                       final waitingCount = snapshot.data!.docs.length;
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.people_outline,
-                              color: Colors.white,
-                              size: 16,
+
+                      // ── Estimasi Waktu Panggilan (Fitur 5) ──────────
+                      const int avgMinutesPerPatient = 10;
+                      final estimatedMinutes =
+                          waitingCount * avgMinutesPerPatient;
+                      final estimatedTime = DateTime.now()
+                          .add(Duration(minutes: estimatedMinutes));
+                      final estimatedLabel =
+                          '${estimatedTime.hour.toString().padLeft(2, '0')}'
+                          '.${estimatedTime.minute.toString().padLeft(2, '0')}';
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Chip: sisa orang / berikutnya
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              waitingCount == 0
-                                  ? 'Anda berikutnya!'
-                                  : 'Sisa $waitingCount orang sebelum Anda',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.people_outline,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  waitingCount == 0
+                                      ? 'Anda berikutnya!'
+                                      : 'Sisa $waitingCount orang sebelum Anda',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Chip: estimasi waktu (hanya jika masih ada antrian)
+                          if (waitingCount > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.access_time_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Estimasi dipanggil: Pukul $estimatedLabel',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                        ],
                       );
                     }
                     return const SizedBox.shrink();
                   },
                 ),
+
 
                 Container(
                   padding: const EdgeInsets.symmetric(

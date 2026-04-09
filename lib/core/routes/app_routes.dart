@@ -20,6 +20,7 @@ class AppRoutes {
   // Pasien
   static const pasien = '/pasien';
   static const doctorList = '/patient/doctors';
+  static const doctorDetail = '/patient/doctor-detail';
   static const queue = '/patient/queue';
   static const queueHistory = '/patient/queue-history';
   static const selectSchedule = '/patient/select-schedule';

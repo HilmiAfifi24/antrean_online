@@ -16,4 +16,10 @@ class PatientDoctorRepositoryImpl implements PatientDoctorRepository {
   Future<List<DoctorEntity>> searchDoctors(String query) {
     return remoteDataSource.searchDoctors(query);
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> getDoctorSchedules(String doctorId) {
+    return remoteDataSource.getDoctorSchedules(doctorId);
+  }
 }
+
