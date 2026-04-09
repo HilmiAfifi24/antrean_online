@@ -6,6 +6,11 @@ class DoctorEntity {
   final String email;
   final bool isActive;
 
+  // Optional extended profile fields
+  final String experience;
+  final String education;
+  final String about;
+
   DoctorEntity({
     required this.id,
     required this.name,
@@ -13,6 +18,9 @@ class DoctorEntity {
     required this.phone,
     required this.email,
     required this.isActive,
+    this.experience = '',
+    this.education = '',
+    this.about = '',
   });
 
   // Get initials for avatar
