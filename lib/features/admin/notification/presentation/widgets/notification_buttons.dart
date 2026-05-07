@@ -110,7 +110,7 @@ class NotificationButtons extends StatelessWidget {
                           : () => _showConfirmDialog(
                               context,
                               'Buka Antrean',
-                              'Kirim notifikasi pembukaan antrean ke semua pasien yang sudah booking untuk jadwal Dr. $doctorName?',
+                              'Kirim notifikasi pembukaan antrean ke semua pasien yang sudah booking untuk jadwal $doctorName?',
                               () => controller
                                   .sendQueueOpenedNotificationsForSchedule(
                                     scheduleId,
@@ -140,7 +140,7 @@ class NotificationButtons extends StatelessWidget {
                           : () => _showConfirmDialog(
                               context,
                               'Mulai Praktek',
-                              'Kirim notifikasi praktek dimulai ke pasien yang sedang menunggu untuk jadwal Dr. $doctorName?',
+                              'Kirim notifikasi praktek dimulai ke pasien yang sedang menunggu untuk jadwal $doctorName?',
                               () => controller
                                   .sendPracticeStartedNotificationsForSchedule(
                                     scheduleId,

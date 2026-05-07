@@ -420,7 +420,7 @@ class DoctorAdminController extends GetxController {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Dr. $name',
+                      _formatDoctorName(name),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
@@ -609,6 +609,16 @@ class DoctorAdminController extends GetxController {
         (isAddMode
             ? password.length >= 6
             : true); // Password minimal 6 karakter untuk add
+  }
+
+  // Show error message
+  String _formatDoctorName(String name) {
+    final trimmed = name.trim();
+    final withoutPrefix = trimmed.replaceFirst(
+      RegExp(r'^(dr\.?\s*)', caseSensitive: false),
+      '',
+    );
+    return 'dr. $withoutPrefix';
   }
 
   // Show error message

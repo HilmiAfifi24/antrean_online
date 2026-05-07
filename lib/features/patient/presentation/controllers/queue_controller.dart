@@ -17,6 +17,8 @@ class QueueController extends GetxController {
 
   // Stream subscription
   StreamSubscription? _queueSubscription;
+  StreamSubscription<User?>? _authStateSubscription;
+  String? _currentUserId;
 
   // Getters
   QueueEntity? get activeQueue => _activeQueue.value;
@@ -26,26 +28,45 @@ class QueueController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _setupQueueListener();
+    _setupAuthStateListener();
   }
 
   @override
   void onClose() {
+    _authStateSubscription?.cancel();
     _queueSubscription?.cancel();
     super.onClose();
   }
 
-  // Setup realtime listener for active queue
-  void _setupQueueListener() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+  // Setup realtime listener for active queue and react to auth changes
+  void _setupAuthStateListener() {
+    _authStateSubscription?.cancel();
+
+    void handleAuthChange(User? user) {
+      final nextUserId = user?.uid;
+      if (_currentUserId == nextUserId) {
+        return;
+      }
+
+      _currentUserId = nextUserId;
       _queueSubscription?.cancel();
-      _queueSubscription = repository.watchActiveQueue(user.uid).listen((
+      _activeQueue.value = null;
+
+      if (nextUserId == null) {
+        return;
+      }
+
+      _queueSubscription = repository.watchActiveQueue(nextUserId).listen((
         queue,
       ) {
         _activeQueue.value = queue;
       });
     }
+
+    handleAuthChange(FirebaseAuth.instance.currentUser);
+    _authStateSubscription = FirebaseAuth.instance
+        .authStateChanges()
+        .listen(handleAuthChange);
   }
 
   // Load active queue

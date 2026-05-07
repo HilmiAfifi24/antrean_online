@@ -128,6 +128,15 @@ class _DoctorCardState extends State<DoctorCard>
     );
   }
 
+  String _formatDoctorName(String name) {
+    final trimmed = name.trim();
+    final withoutPrefix = trimmed.replaceFirst(
+      RegExp(r'^(dr\.?\s*)', caseSensitive: false),
+      '',
+    );
+    return 'dr. $withoutPrefix';
+  }
+
   Widget _buildCardContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,7 +198,7 @@ class _DoctorCardState extends State<DoctorCard>
                     children: [
                       Expanded(
                         child: Text(
-                          'Dr. ${widget.doctor.namaLengkap}',
+                          _formatDoctorName(widget.doctor.namaLengkap),
                           style: const TextStyle(
                             fontSize: 19,
                             fontWeight: FontWeight.bold,

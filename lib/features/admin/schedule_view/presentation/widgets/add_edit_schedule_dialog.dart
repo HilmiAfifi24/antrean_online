@@ -6,6 +6,15 @@ import 'package:get/get.dart';
 class AddEditScheduleDialog extends StatelessWidget {
   const AddEditScheduleDialog({super.key});
 
+  String _formatDoctorName(String name) {
+    final trimmed = name.trim();
+    final withoutPrefix = trimmed.replaceFirst(
+      RegExp(r'^(dr\.?\s*)', caseSensitive: false),
+      '',
+    );
+    return 'dr. $withoutPrefix';
+  }
+
   @override
   Widget build(BuildContext context) {
     return GetBuilder<ScheduleController>(
@@ -88,7 +97,7 @@ class AddEditScheduleDialog extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    doctor.namaLengkap,
+                                    _formatDoctorName(doctor.namaLengkap),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w500,
                                     ),

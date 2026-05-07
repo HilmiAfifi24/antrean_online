@@ -477,25 +477,92 @@ class DoctorHomePage extends StatelessWidget {
   }
 
   Widget _buildActionButtons(DoctorController controller, bool isSmallScreen) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          flex: 2,
-          child: Obx(
-            () => ElevatedButton.icon(
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Obx(
+                () => ElevatedButton.icon(
+                  onPressed:
+                      (controller.isLoading || !controller.isTodaySelected)
+                          ? null
+                          : controller.callNextPatient,
+                  icon: const Icon(Icons.call, size: 20),
+                  label: Text(
+                    'Panggil',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 14 : 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1976D2),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      vertical: isSmallScreen ? 14 : 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Obx(
+                () => OutlinedButton.icon(
+                  onPressed:
+                      (controller.isLoading || !controller.isTodaySelected)
+                          ? null
+                          : controller.skipCurrentPatient,
+                  icon: const Icon(Icons.skip_next, size: 20),
+                  label: Text(
+                    'Lewati',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 14 : 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF9800),
+                    side: const BorderSide(
+                      color: Color(0xFFFF9800),
+                      width: 2,
+                    ),
+                    padding: EdgeInsets.symmetric(
+                      vertical: isSmallScreen ? 14 : 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Obx(
+          () => SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
               onPressed: (controller.isLoading || !controller.isTodaySelected)
                   ? null
-                  : controller.callNextPatient,
-              icon: const Icon(Icons.call, size: 20),
+                  : controller.completeCurrentPatient,
+              icon: const Icon(Icons.check_circle, size: 20),
               label: Text(
-                'Panggil',
+                'Selesai',
                 style: TextStyle(
                   fontSize: isSmallScreen ? 14 : 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2),
+                backgroundColor: const Color(0xFF4CAF50),
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(
                   vertical: isSmallScreen ? 14 : 16,
@@ -504,34 +571,6 @@ class DoctorHomePage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 elevation: 2,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Obx(
-            () => OutlinedButton.icon(
-              onPressed: (controller.isLoading || !controller.isTodaySelected)
-                  ? null
-                  : controller.skipCurrentPatient,
-              icon: const Icon(Icons.skip_next, size: 20),
-              label: Text(
-                'Lewati',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 14 : 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFFF9800),
-                side: const BorderSide(color: Color(0xFFFF9800), width: 2),
-                padding: EdgeInsets.symmetric(
-                  vertical: isSmallScreen ? 14 : 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
               ),
             ),
           ),

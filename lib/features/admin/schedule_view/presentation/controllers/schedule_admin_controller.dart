@@ -453,7 +453,7 @@ class ScheduleController extends GetxController {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Dr. ${doctorName ?? 'Unknown'}',
+                            _formatDoctorName(doctorName ?? 'Unknown'),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
@@ -663,6 +663,16 @@ class ScheduleController extends GetxController {
         int.tryParse(maxPatientsController.text.trim()) != null &&
         int.parse(maxPatientsController.text.trim()) > 0;
     update();
+  }
+
+  // Show error snackbar
+  String _formatDoctorName(String name) {
+    final trimmed = name.trim();
+    final withoutPrefix = trimmed.replaceFirst(
+      RegExp(r'^(dr\.?\s*)', caseSensitive: false),
+      '',
+    );
+    return 'dr. $withoutPrefix';
   }
 
   // Show error snackbar

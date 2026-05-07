@@ -74,34 +74,37 @@ class ScheduleBinding extends Bindings {
     }
 
     // Use Cases Layer - Schedule
-    Get.put(
+    Get.put<schedule_admin_usecases.GetAllSchedules>(
       schedule_admin_usecases.GetAllSchedules(
         Get.find<ScheduleAdminRepository>(),
       ),
       permanent: true,
     );
-    Get.put(
+    Get.put<GetScheduleById>(
       GetScheduleById(Get.find<ScheduleAdminRepository>()),
       permanent: true,
     );
-    Get.put(AddSchedule(Get.find<ScheduleAdminRepository>()), permanent: true);
-    Get.put(
+    Get.put<AddSchedule>(
+      AddSchedule(Get.find<ScheduleAdminRepository>()),
+      permanent: true,
+    );
+    Get.put<UpdateSchedule>(
       UpdateSchedule(Get.find<ScheduleAdminRepository>()),
       permanent: true,
     );
-    Get.put(
+    Get.put<DeleteSchedule>(
       DeleteSchedule(Get.find<ScheduleAdminRepository>()),
       permanent: true,
     );
-    Get.put(
+    Get.put<ActivateSchedule>(
       ActivateSchedule(Get.find<ScheduleAdminRepository>()),
       permanent: true,
     );
-    Get.put(
+    Get.put<SearchSchedules>(
       SearchSchedules(Get.find<ScheduleAdminRepository>()),
       permanent: true,
     );
-    Get.put(
+    Get.put<GetSchedulesByDoctor>(
       GetSchedulesByDoctor(Get.find<ScheduleAdminRepository>()),
       permanent: true,
     );
@@ -117,15 +120,16 @@ class ScheduleBinding extends Bindings {
     // Controller Layer
     Get.put(
       ScheduleController(
-        getAllSchedules: Get.find(),
-        getScheduleById: Get.find(),
-        addSchedule: Get.find(),
-        updateSchedule: Get.find(),
-        deleteSchedule: Get.find(),
-        activateSchedule: Get.find(),
-        searchSchedules: Get.find(),
-        getSchedulesByDoctor: Get.find(),
-        getAllDoctors: Get.find(),
+        getAllSchedules:
+            Get.find<schedule_admin_usecases.GetAllSchedules>(),
+        getScheduleById: Get.find<GetScheduleById>(),
+        addSchedule: Get.find<AddSchedule>(),
+        updateSchedule: Get.find<UpdateSchedule>(),
+        deleteSchedule: Get.find<DeleteSchedule>(),
+        activateSchedule: Get.find<ActivateSchedule>(),
+        searchSchedules: Get.find<SearchSchedules>(),
+        getSchedulesByDoctor: Get.find<GetSchedulesByDoctor>(),
+        getAllDoctors: Get.find<GetAllDoctors>(),
       ),
       permanent: true,
     );

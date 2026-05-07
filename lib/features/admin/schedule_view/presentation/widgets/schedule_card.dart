@@ -129,7 +129,7 @@ class _ScheduleCardState extends State<ScheduleCard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.schedule.doctorName,
+                    _formatDoctorName(widget.schedule.doctorName),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -377,10 +377,19 @@ class _ScheduleCardState extends State<ScheduleCard>
         if (widget.schedule.isActive)
           NotificationButtons(
             scheduleId: widget.schedule.id,
-            doctorName: widget.schedule.doctorName,
+            doctorName: _formatDoctorName(widget.schedule.doctorName),
           ),
       ],
     );
+  }
+
+  String _formatDoctorName(String name) {
+    final trimmed = name.trim();
+    final withoutPrefix = trimmed.replaceFirst(
+      RegExp(r'^(dr\.?\s*)', caseSensitive: false),
+      '',
+    );
+    return 'dr. $withoutPrefix';
   }
 
   Widget _buildInfoRow(IconData icon, String text, Color color) {

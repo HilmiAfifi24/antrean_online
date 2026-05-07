@@ -5,13 +5,25 @@ import 'package:get/get.dart';
 class SchedulesFilter extends StatelessWidget {
   const SchedulesFilter({super.key});
 
+  String _formatDoctorName(String name) {
+    final trimmed = name.trim();
+    final withoutPrefix = trimmed.replaceFirst(
+      RegExp(r'^(dr\.?\s*)', caseSensitive: false),
+      '',
+    );
+    return 'dr. $withoutPrefix';
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 50,
       child: GetBuilder<ScheduleController>(
         builder: (controller) {
-          final doctors = ['Semua', ...controller.doctors.map((d) => d.namaLengkap)];
+          final doctors = [
+            'Semua',
+            ...controller.doctors.map((d) => _formatDoctorName(d.namaLengkap)),
+          ];
           
           return ListView.builder(
             scrollDirection: Axis.horizontal,

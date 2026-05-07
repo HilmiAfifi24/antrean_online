@@ -1,6 +1,8 @@
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../data/repositories/doctor_repository_impl.dart';
+import '../../domain/repositories/doctor_repository.dart';
 
 class DoctorController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -278,46 +280,33 @@ class DoctorController extends GetxController {
   Future<void> skipCurrentPatient() async {
     try {
       _isLoading.value = true;
-
       final user = _auth.currentUser;
       if (user == null) return;
 
-      final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
+      // Use repository implementation to handle skip logic (move to end)
+      final DoctorRepository repo = DoctorRepositoryImpl();
+      try {
+        await repo.skipCurrentPatient(user.uid);
 
-      // Find currently called patient
-      final calledQueues = await _firestore
-          .collection('queues')
-          .where('doctor_id', isEqualTo: user.uid)
-          .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
-          .where('status', isEqualTo: 'dipanggil')
-          .limit(1)
-          .get();
-
-      if (calledQueues.docs.isEmpty) {
         Get.snackbar(
           'Info',
-          'Tidak ada pasien yang sedang dipanggil',
+          'Pasien dilewati',
           snackPosition: SnackPosition.BOTTOM,
         );
-        return;
+
+        // Refresh stats
+        await _loadQueueStats();
+      } on Exception catch (e) {
+        if (e.toString().contains('no_called_patient')) {
+          Get.snackbar(
+            'Info',
+            'Tidak ada pasien yang sedang dipanggil',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        } else {
+          rethrow;
+        }
       }
-
-      // Update status back to 'menunggu'
-      final queueDoc = calledQueues.docs.first;
-      await _firestore.collection('queues').doc(queueDoc.id).update({
-        'status': 'menunggu',
-        'skipped_at': FieldValue.serverTimestamp(),
-      });
-
-      Get.snackbar(
-        'Info',
-        'Pasien dilewati',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-
-      // Refresh stats
-      await _loadQueueStats();
     } catch (e) {
       Get.snackbar(
         'Error',
