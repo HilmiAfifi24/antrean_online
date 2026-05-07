@@ -19,5 +19,16 @@ abstract class PatientQueueRepository {
 
   Stream<QueueEntity?> watchActiveQueue(String patientId);
 
+  Stream<int?> watchCurrentClinicQueueNumber({
+    required String scheduleId,
+    required DateTime appointmentDate,
+  });
+
+  Stream<int> watchWaitingCountBeforeQueue({
+    required String scheduleId,
+    required DateTime appointmentDate,
+    required int queueNumber,
+  });
+
   Future<List<QueueEntity>> getQueueHistory(String patientId);
 }

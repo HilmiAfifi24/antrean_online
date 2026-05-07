@@ -48,6 +48,30 @@ class PatientQueueRepositoryImpl implements PatientQueueRepository {
   }
 
   @override
+  Stream<int?> watchCurrentClinicQueueNumber({
+    required String scheduleId,
+    required DateTime appointmentDate,
+  }) {
+    return dataSource.watchCurrentClinicQueueNumber(
+      scheduleId: scheduleId,
+      appointmentDate: appointmentDate,
+    );
+  }
+
+  @override
+  Stream<int> watchWaitingCountBeforeQueue({
+    required String scheduleId,
+    required DateTime appointmentDate,
+    required int queueNumber,
+  }) {
+    return dataSource.watchWaitingCountBeforeQueue(
+      scheduleId: scheduleId,
+      appointmentDate: appointmentDate,
+      queueNumber: queueNumber,
+    );
+  }
+
+  @override
   Future<List<QueueEntity>> getQueueHistory(String patientId) {
     return dataSource.getQueueHistory(patientId);
   }

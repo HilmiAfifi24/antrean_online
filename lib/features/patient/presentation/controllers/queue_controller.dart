@@ -13,15 +13,23 @@ class QueueController extends GetxController {
 
   // Observable variables
   final Rxn<QueueEntity> _activeQueue = Rxn<QueueEntity>();
+  final RxnInt _currentClinicQueueNumber = RxnInt();
+  final RxInt _waitingAheadCount = 0.obs;
   final RxBool _isLoading = false.obs;
 
   // Stream subscription
   StreamSubscription? _queueSubscription;
+  StreamSubscription? _currentClinicQueueSubscription;
+  StreamSubscription? _waitingCountSubscription;
   StreamSubscription<User?>? _authStateSubscription;
   String? _currentUserId;
+  String? _currentClinicKey;
+  String? _currentWaitingKey;
 
   // Getters
   QueueEntity? get activeQueue => _activeQueue.value;
+  int? get currentClinicQueueNumber => _currentClinicQueueNumber.value;
+  int get waitingAheadCount => _waitingAheadCount.value;
   bool get isLoading => _isLoading.value;
   bool get hasActiveQueue => _activeQueue.value != null;
 
@@ -35,6 +43,8 @@ class QueueController extends GetxController {
   void onClose() {
     _authStateSubscription?.cancel();
     _queueSubscription?.cancel();
+    _currentClinicQueueSubscription?.cancel();
+    _waitingCountSubscription?.cancel();
     super.onClose();
   }
 
@@ -60,6 +70,8 @@ class QueueController extends GetxController {
         queue,
       ) {
         _activeQueue.value = queue;
+        _bindCurrentClinicQueue(queue);
+        _bindWaitingCount(queue);
       });
     }
 
@@ -67,6 +79,70 @@ class QueueController extends GetxController {
     _authStateSubscription = FirebaseAuth.instance
         .authStateChanges()
         .listen(handleAuthChange);
+  }
+
+  void _bindCurrentClinicQueue(QueueEntity? queue) {
+    if (queue == null) {
+      _currentClinicKey = null;
+      _currentClinicQueueSubscription?.cancel();
+      _currentClinicQueueNumber.value = null;
+      return;
+    }
+
+    final normalizedDate = DateTime(
+      queue.appointmentDate.year,
+      queue.appointmentDate.month,
+      queue.appointmentDate.day,
+    );
+    final nextKey = '${queue.scheduleId}_${normalizedDate.toIso8601String()}';
+
+    if (_currentClinicKey == nextKey) {
+      return;
+    }
+
+    _currentClinicKey = nextKey;
+    _currentClinicQueueSubscription?.cancel();
+    _currentClinicQueueSubscription = repository
+        .watchCurrentClinicQueueNumber(
+          scheduleId: queue.scheduleId,
+          appointmentDate: normalizedDate,
+        )
+        .listen((queueNumber) {
+          _currentClinicQueueNumber.value = queueNumber;
+        });
+  }
+
+  void _bindWaitingCount(QueueEntity? queue) {
+    if (queue == null) {
+      _currentWaitingKey = null;
+      _waitingCountSubscription?.cancel();
+      _waitingAheadCount.value = 0;
+      return;
+    }
+
+    final normalizedDate = DateTime(
+      queue.appointmentDate.year,
+      queue.appointmentDate.month,
+      queue.appointmentDate.day,
+    );
+
+    final nextKey =
+        '${queue.scheduleId}_${normalizedDate.toIso8601String()}_${queue.queueNumber}';
+    if (_currentWaitingKey == nextKey) {
+      return;
+    }
+
+    _currentWaitingKey = nextKey;
+    _waitingCountSubscription?.cancel();
+    _waitingCountSubscription = repository
+        .watchWaitingCountBeforeQueue(
+          scheduleId: queue.scheduleId,
+          appointmentDate: normalizedDate,
+          queueNumber: queue.queueNumber,
+        )
+        .listen((count) {
+          _waitingAheadCount.value = count;
+        });
   }
 
   // Load active queue

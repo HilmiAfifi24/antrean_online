@@ -213,6 +213,90 @@ class QueueRemoteDataSource {
         });
   }
 
+  // Stream current queue number in clinic.
+  // Priority: currently called (dipanggil) -> latest completed (selesai) -> null.
+  Stream<int?> watchCurrentClinicQueueNumber({
+    required String scheduleId,
+    required DateTime appointmentDate,
+  }) {
+    final normalizedDate = DateTime(
+      appointmentDate.year,
+      appointmentDate.month,
+      appointmentDate.day,
+    );
+
+    return firestore
+        .collection('queues')
+        .where('schedule_id', isEqualTo: scheduleId)
+        .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+        .where('status', whereIn: ['dipanggil', 'selesai'])
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isEmpty) {
+            return null;
+          }
+
+          final docs = snapshot.docs.map((d) => d.data()).toList();
+
+          final calledDocs = docs.where((d) => d['status'] == 'dipanggil').toList();
+          if (calledDocs.isNotEmpty) {
+            calledDocs.sort((a, b) {
+              final aQueue = (a['queue_number'] as num?)?.toInt() ?? 999999;
+              final bQueue = (b['queue_number'] as num?)?.toInt() ?? 999999;
+              return aQueue.compareTo(bQueue);
+            });
+            return (calledDocs.first['queue_number'] as num?)?.toInt();
+          }
+
+          final completedDocs = docs.where((d) => d['status'] == 'selesai').toList();
+          if (completedDocs.isEmpty) {
+            return null;
+          }
+
+          completedDocs.sort((a, b) {
+            final aCompleted = a['completed_at'];
+            final bCompleted = b['completed_at'];
+            final aMillis = aCompleted is Timestamp
+                ? aCompleted.millisecondsSinceEpoch
+                : 0;
+            final bMillis = bCompleted is Timestamp
+                ? bCompleted.millisecondsSinceEpoch
+                : 0;
+
+            if (aMillis == bMillis) {
+              final aQueue = (a['queue_number'] as num?)?.toInt() ?? 0;
+              final bQueue = (b['queue_number'] as num?)?.toInt() ?? 0;
+              return bQueue.compareTo(aQueue);
+            }
+
+            return bMillis.compareTo(aMillis);
+          });
+
+          return (completedDocs.first['queue_number'] as num?)?.toInt();
+        });
+  }
+
+  Stream<int> watchWaitingCountBeforeQueue({
+    required String scheduleId,
+    required DateTime appointmentDate,
+    required int queueNumber,
+  }) {
+    final normalizedDate = DateTime(
+      appointmentDate.year,
+      appointmentDate.month,
+      appointmentDate.day,
+    );
+
+    return firestore
+        .collection('queues')
+        .where('schedule_id', isEqualTo: scheduleId)
+        .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+        .where('status', whereIn: ['menunggu', 'dipanggil'])
+        .where('queue_number', isLessThan: queueNumber)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
   // Get queue history (selesai and dibatalkan)
   Future<List<QueueEntity>> getQueueHistory(String patientId) async {
     try {

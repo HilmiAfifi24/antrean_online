@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../controllers/queue_controller.dart';
-
-// Track whether we've already shown the index-building snackbar to avoid spamming users
-bool _indexSnackbarShown = false;
 
 class QueuePage extends GetView<QueueController> {
   const QueuePage({super.key});
@@ -182,45 +178,10 @@ class QueuePage extends GetView<QueueController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Current Queue in Clinic Card (Realtime)
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('queues')
-                .where('schedule_id', isEqualTo: queue.scheduleId)
-                .where('status', isEqualTo: 'dipanggil')
-                .orderBy('queue_number', descending: false)
-                .limit(1)
-                .snapshots()
-                .handleError((error) {
-                  // Log error and let builder show friendly UI
-                  // ignore: avoid_print
-                  print('[QueuePage] currentQueue stream error: $error');
-                }),
-            builder: (context, snapshot) {
-              int? currentQueueNumber;
-              if (snapshot.hasError) {
-                // print('[QueuePage] currentQueue snapshot error: ${snapshot.error}');
-                if (!_indexSnackbarShown &&
-                    snapshot.error.toString().contains('requires an index')) {
-                  _indexSnackbarShown = true;
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    try {
-                      Get.snackbar(
-                        'Sinkronisasi',
-                        'Data sedang disinkronkan. Mohon tunggu beberapa saat sampai Firestore membangun indeks.',
-                        snackPosition: SnackPosition.BOTTOM,
-                        duration: const Duration(seconds: 4),
-                      );
-                    } catch (_) {}
-                  });
-                }
-              }
+          Obx(() {
+            final currentQueueNumber = controller.currentClinicQueueNumber;
 
-              if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                final doc = snapshot.data!.docs.first;
-                currentQueueNumber = doc['queue_number'] as int?;
-              }
-
-              return Container(
+            return Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 margin: const EdgeInsets.only(bottom: 16),
@@ -292,8 +253,7 @@ class QueuePage extends GetView<QueueController> {
                   ],
                 ),
               );
-            },
-          ),
+          }),
 
           // Queue Number Card
           Container(
@@ -334,134 +294,95 @@ class QueuePage extends GetView<QueueController> {
                 const SizedBox(height: 12),
 
                 // Estimated waiting info
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('queues')
-                      .where('schedule_id', isEqualTo: queue.scheduleId)
-                      .where('status', whereIn: ['menunggu', 'dipanggil'])
-                      .where('queue_number', isLessThan: queue.queueNumber)
-                      .snapshots()
-                      .handleError((error) {
-                        // ignore: avoid_print
-                        print('[QueuePage] waitingCount stream error: $error');
-                      }),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      // ignore: avoid_print
-                      print(
-                        '[QueuePage] waitingCount snapshot error: ${snapshot.error}',
-                      );
-                      if (!_indexSnackbarShown &&
-                          snapshot.error.toString().contains(
-                            'requires an index',
-                          )) {
-                        _indexSnackbarShown = true;
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          try {
-                            Get.snackbar(
-                              'Sinkronisasi',
-                              'Data sedang disinkronkan. Mohon tunggu beberapa saat sampai Firestore membangun indeks.',
-                              snackPosition: SnackPosition.BOTTOM,
-                              duration: const Duration(seconds: 4),
-                            );
-                          } catch (_) {}
-                        });
-                      }
-                      return const SizedBox.shrink();
-                    }
+                Obx(() {
+                  final waitingCount = controller.waitingAheadCount;
 
-                    if (snapshot.hasData) {
-                      final waitingCount = snapshot.data!.docs.length;
+                  // ── Estimasi Waktu Panggilan (Fitur 5) ──────────
+                  const int avgMinutesPerPatient = 10;
+                  final estimatedMinutes = waitingCount * avgMinutesPerPatient;
+                  final estimatedTime = DateTime.now().add(
+                    Duration(minutes: estimatedMinutes),
+                  );
+                  final estimatedLabel =
+                      '${estimatedTime.hour.toString().padLeft(2, '0')}'
+                      '.${estimatedTime.minute.toString().padLeft(2, '0')}';
 
-                      // ── Estimasi Waktu Panggilan (Fitur 5) ──────────
-                      const int avgMinutesPerPatient = 10;
-                      final estimatedMinutes =
-                          waitingCount * avgMinutesPerPatient;
-                      final estimatedTime = DateTime.now()
-                          .add(Duration(minutes: estimatedMinutes));
-                      final estimatedLabel =
-                          '${estimatedTime.hour.toString().padLeft(2, '0')}'
-                          '.${estimatedTime.minute.toString().padLeft(2, '0')}';
-
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Chip: sisa orang / berikutnya
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Chip: sisa orang / berikutnya
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.people_outline,
+                              color: Colors.white,
+                              size: 16,
                             ),
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(20),
+                            const SizedBox(width: 8),
+                            Text(
+                              waitingCount == 0
+                                  ? 'Anda berikutnya!'
+                                  : 'Sisa $waitingCount orang sebelum Anda',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.people_outline,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  waitingCount == 0
-                                      ? 'Anda berikutnya!'
-                                      : 'Sisa $waitingCount orang sebelum Anda',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
+                          ],
+                        ),
+                      ),
+
+                      // Chip: estimasi waktu (hanya jika masih ada antrian)
+                      if (waitingCount > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.4),
+                              width: 1,
                             ),
                           ),
-
-                          // Chip: estimasi waktu (hanya jika masih ada antrian)
-                          if (waitingCount > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.access_time_rounded,
+                                color: Colors.white,
+                                size: 16,
                               ),
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  width: 1,
+                              const SizedBox(width: 8),
+                              Text(
+                                'Estimasi dipanggil: Pukul $estimatedLabel',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time_rounded,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Estimasi dipanggil: Pukul $estimatedLabel',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  );
+                }),
 
 
                 Container(
