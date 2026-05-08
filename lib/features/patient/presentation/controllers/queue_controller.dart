@@ -33,6 +33,57 @@ class QueueController extends GetxController {
   bool get isLoading => _isLoading.value;
   bool get hasActiveQueue => _activeQueue.value != null;
 
+  bool get isPatientInClinic {
+    final queue = _activeQueue.value;
+    final currentQueue = _currentClinicQueueNumber.value;
+
+    if (queue == null || currentQueue == null) {
+      return false;
+    }
+
+    return queue.queueNumber <= currentQueue;
+  }
+
+  int get remainingPatientsBeforeYou {
+    final queue = _activeQueue.value;
+    if (queue == null) {
+      return 0;
+    }
+
+    final currentQueue = _currentClinicQueueNumber.value;
+
+    if (currentQueue == null) {
+      return _waitingAheadCount.value < 0 ? 0 : _waitingAheadCount.value;
+    }
+
+    if (queue.queueNumber <= currentQueue) {
+      return 0;
+    }
+
+    // waitingAheadCount includes the patient currently called in clinic,
+    // while "orang sebelum Anda" should exclude that in-clinic patient.
+    final remaining = _waitingAheadCount.value - 1;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  String get queueProgressLabel {
+    final queue = _activeQueue.value;
+    if (queue == null) {
+      return '';
+    }
+
+    if (queue.status == 'dipanggil' || isPatientInClinic) {
+      return 'Anda sedang di dalam klinik';
+    }
+
+    final remaining = remainingPatientsBeforeYou;
+    if (remaining == 0) {
+      return 'Anda berikutnya!';
+    }
+
+    return 'Sisa $remaining orang sebelum Anda';
+  }
+
   @override
   void onInit() {
     super.onInit();

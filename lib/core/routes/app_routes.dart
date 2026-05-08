@@ -16,6 +16,7 @@ class AppRoutes {
   // Dokter
   static const dokter = '/dokter';
   static const doctorHome = '/doctor/home';
+  static const doctorHistory = '/doctor/history';
 
   // Pasien
   static const pasien = '/pasien';

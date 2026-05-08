@@ -6,7 +6,7 @@ import '../../domain/entities/doctor_entity.dart';
 import '../../domain/usecases/get_all_doctors.dart';
 
 class DoctorListController extends GetxController {
-  final GetAllDoctors getAllDoctors;
+  final GetAllPatientDoctors getAllDoctors;
 
   DoctorListController({required this.getAllDoctors});
 

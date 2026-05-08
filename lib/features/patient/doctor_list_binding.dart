@@ -23,7 +23,7 @@ class DoctorListBinding extends Bindings {
     );
 
     // Use Cases
-    Get.lazyPut(() => GetAllDoctors(Get.find()));
+    Get.lazyPut<GetAllPatientDoctors>(() => GetAllPatientDoctors(Get.find()));
 
     // Controller
     Get.lazyPut(() => DoctorListController(getAllDoctors: Get.find()));

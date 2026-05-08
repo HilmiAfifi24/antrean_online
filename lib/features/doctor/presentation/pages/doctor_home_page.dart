@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import '../controllers/doctor_controller.dart';
 import '../widgets/current_queue_card.dart';
 import '../widgets/stat_card.dart';
@@ -116,13 +117,32 @@ class DoctorHomePage extends StatelessWidget {
                                     color: Color(0xFF1976D2),
                                   ),
                                 ),
-                                TextButton.icon(
-                                  onPressed: controller.refreshData,
-                                  icon: const Icon(Icons.refresh, size: 18),
-                                  label: const Text('Refresh'),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: const Color(0xFF1976D2),
-                                  ),
+                                Row(
+                                  children: [
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        Get.toNamed(
+                                          '/doctor/history',
+                                          arguments: {'date': controller.selectedDate.toIso8601String()},
+                                        );
+                                      },
+                                      icon: const Icon(Icons.history, size: 18),
+                                      label: const Text('Riwayat'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: const Color(0xFF1976D2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: controller.refreshData,
+                                      icon: const Icon(Icons.refresh, size: 18),
+                                      label: const Text('Refresh'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: const Color(0xFF1976D2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -296,15 +316,44 @@ class DoctorHomePage extends StatelessWidget {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              'Jadwal Praktik',
-              style: TextStyle(
-                fontSize: isSmallScreen ? 14 : 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 0.5,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jadwal Praktik',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 14 : 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Obx(() => Row(
+                  children: [
+                    InkWell(
+                      onTap: controller.previousMonth,
+                      child: const Icon(Icons.chevron_left, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('MMMM y', 'id_ID').format(controller.currentViewMonth),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: controller.nextMonth,
+                      child: const Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                    ),
+                  ],
+                )),
+              ],
             ),
             Obx(() {
               if (controller.isTodaySelected) {
@@ -370,15 +419,24 @@ class DoctorHomePage extends StatelessWidget {
         SizedBox(
           height: 75,
           child: Obx(() {
-            final now = DateTime.now();
-            final today = DateTime(now.year, now.month, now.day);
+            final availableDates = controller.availableDatesInMonth;
+            
+            if (availableDates.isEmpty) {
+              return Center(
+                child: Text(
+                  'Tidak ada jadwal praktik di bulan ini',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+                ),
+              );
+            }
+
             final selDate = controller.selectedDate;
 
             return ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: 14, // Show next 14 days
+              itemCount: availableDates.length,
               itemBuilder: (context, index) {
-                final date = today.add(Duration(days: index));
+                final date = availableDates[index];
                 final isSelected =
                     date.year == selDate.year &&
                     date.month == selDate.month &&

@@ -1,10 +1,10 @@
 import '../entities/schedule_entity.dart';
 import '../repositories/patient_schedule_repository.dart';
 
-class SearchSchedules {
+class SearchPatientSchedules {
   final PatientScheduleRepository repository;
 
-  SearchSchedules(this.repository);
+  SearchPatientSchedules(this.repository);
 
   Future<List<ScheduleEntity>> call(String query) async {
     return await repository.searchSchedules(query);

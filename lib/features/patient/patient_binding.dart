@@ -32,8 +32,8 @@ class PatientBinding extends Bindings {
     );
 
     // Use Cases Layer
-    Get.put<GetAllSchedules>(
-      GetAllSchedules(Get.find<PatientScheduleRepository>()),
+    Get.put<GetAllPatientSchedules>(
+      GetAllPatientSchedules(Get.find<PatientScheduleRepository>()),
       permanent: true,
     );
     Get.put<GetSchedulesByDay>(
@@ -48,19 +48,19 @@ class PatientBinding extends Bindings {
       GetScheduleDatesStream(Get.find<PatientScheduleRepository>()),
       permanent: true,
     );
-    Get.put<SearchSchedules>(
-      SearchSchedules(Get.find<PatientScheduleRepository>()),
+    Get.put<SearchPatientSchedules>(
+      SearchPatientSchedules(Get.find<PatientScheduleRepository>()),
       permanent: true,
     );
 
     // Controller Layer
     Get.put(
       PatientController(
-        getAllSchedules: Get.find<GetAllSchedules>(),
+        getAllSchedules: Get.find<GetAllPatientSchedules>(),
         getSchedulesByDay: Get.find<GetSchedulesByDay>(),
         getSchedulesByDayStream: Get.find<GetSchedulesByDayStream>(),
         getScheduleDatesStream: Get.find<GetScheduleDatesStream>(),
-        searchSchedules: Get.find<SearchSchedules>(),
+        searchSchedules: Get.find<SearchPatientSchedules>(),
       ),
       permanent: true,
     );

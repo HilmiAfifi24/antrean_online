@@ -295,11 +295,14 @@ class QueuePage extends GetView<QueueController> {
 
                 // Estimated waiting info
                 Obx(() {
-                  final waitingCount = controller.waitingAheadCount;
+                  final remainingBeforeYou =
+                      controller.remainingPatientsBeforeYou;
+                  final progressLabel = controller.queueProgressLabel;
 
                   // ── Estimasi Waktu Panggilan (Fitur 5) ──────────
                   const int avgMinutesPerPatient = 10;
-                  final estimatedMinutes = waitingCount * avgMinutesPerPatient;
+                  final estimatedMinutes =
+                      remainingBeforeYou * avgMinutesPerPatient;
                   final estimatedTime = DateTime.now().add(
                     Duration(minutes: estimatedMinutes),
                   );
@@ -331,9 +334,7 @@ class QueuePage extends GetView<QueueController> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              waitingCount == 0
-                                  ? 'Anda berikutnya!'
-                                  : 'Sisa $waitingCount orang sebelum Anda',
+                              progressLabel,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -345,7 +346,7 @@ class QueuePage extends GetView<QueueController> {
                       ),
 
                       // Chip: estimasi waktu (hanya jika masih ada antrian)
-                      if (waitingCount > 0)
+                      if (remainingBeforeYou > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,

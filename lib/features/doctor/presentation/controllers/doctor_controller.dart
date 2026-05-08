@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/repositories/doctor_repository_impl.dart';
 import '../../domain/repositories/doctor_repository.dart';
+import '../../../../core/routes/app_routes.dart';
 
 class DoctorController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -22,6 +23,8 @@ class DoctorController extends GetxController {
 
   // Date selection
   final Rx<DateTime> _selectedDate = DateTime.now().obs;
+  final Rx<DateTime> _currentViewMonth = DateTime(DateTime.now().year, DateTime.now().month, 1).obs;
+  final RxList<String> _activeDaysOfWeek = <String>[].obs;
 
   // Getters
   String get doctorName => _doctorName.value;
@@ -36,11 +39,67 @@ class DoctorController extends GetxController {
   int get waitingPatientsToday => _waitingPatientsToday.value;
 
   DateTime get selectedDate => _selectedDate.value;
+  DateTime get currentViewMonth => _currentViewMonth.value;
+  List<String> get activeDaysOfWeek => _activeDaysOfWeek;
+  
   bool get isTodaySelected {
     final now = DateTime.now();
     return _selectedDate.value.year == now.year &&
         _selectedDate.value.month == now.month &&
         _selectedDate.value.day == now.day;
+  }
+
+  List<DateTime> get availableDatesInMonth {
+    final List<DateTime> dates = [];
+    final month = _currentViewMonth.value;
+    final int daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    
+    final Map<String, int> dayNameMap = {
+      'Senin': DateTime.monday,
+      'Selasa': DateTime.tuesday,
+      'Rabu': DateTime.wednesday,
+      'Kamis': DateTime.thursday,
+      'Jumat': DateTime.friday,
+      'Sabtu': DateTime.saturday,
+      'Minggu': DateTime.sunday,
+    };
+
+    final activeWeekdays = _activeDaysOfWeek
+        .map((dayName) => dayNameMap[dayName])
+        .whereType<int>()
+        .toList();
+
+    for (int i = 1; i <= daysInMonth; i++) {
+      final date = DateTime(month.year, month.month, i);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      
+      if (date.isBefore(today)) {
+        continue;
+      }
+
+      if (activeWeekdays.contains(date.weekday)) {
+        dates.add(date);
+      }
+    }
+    
+    return dates;
+  }
+
+  void nextMonth() {
+    final current = _currentViewMonth.value;
+    _currentViewMonth.value = DateTime(current.year, current.month + 1, 1);
+  }
+  
+  void previousMonth() {
+    final current = _currentViewMonth.value;
+    final now = DateTime.now();
+    final newMonth = DateTime(current.year, current.month - 1, 1);
+    
+    if (newMonth.year == now.year && newMonth.month < now.month) return;
+    if (newMonth.year < now.year) return;
+    
+    _currentViewMonth.value = newMonth;
   }
 
   // Greeting based on time
@@ -61,6 +120,7 @@ class DoctorController extends GetxController {
   void onInit() {
     super.onInit();
     _loadDoctorData();
+    _loadDoctorSchedule();
     _loadQueueStats();
   }
 
@@ -107,11 +167,47 @@ class DoctorController extends GetxController {
     }
   }
 
+  Future<void> _loadDoctorSchedule() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        final scheduleQuery = await _firestore
+            .collection('schedules')
+            .where('doctor_id', isEqualTo: user.uid)
+            .where('is_active', isEqualTo: true)
+            .get();
+
+        final Set<String> days = {};
+        for (var doc in scheduleQuery.docs) {
+          final data = doc.data();
+          final daysOfWeek = List<String>.from(data['days_of_week'] ?? []);
+          days.addAll(daysOfWeek);
+        }
+        _activeDaysOfWeek.value = days.toList();
+        
+        // If the initially selected date is not in available days, auto select the first available
+        if (_activeDaysOfWeek.isNotEmpty && availableDatesInMonth.isNotEmpty) {
+           final Map<String, int> dayNameMap = {
+              'Senin': DateTime.monday, 'Selasa': DateTime.tuesday, 'Rabu': DateTime.wednesday,
+              'Kamis': DateTime.thursday, 'Jumat': DateTime.friday, 'Sabtu': DateTime.saturday, 'Minggu': DateTime.sunday,
+            };
+           final activeWeekdays = _activeDaysOfWeek.map((dayName) => dayNameMap[dayName]).toList();
+           if (!activeWeekdays.contains(_selectedDate.value.weekday)) {
+              _selectedDate.value = availableDatesInMonth.first;
+              _loadQueueStats();
+           }
+        }
+      }
+    } catch (e) {
+      print('Error loading schedule: $e');
+    }
+  }
+
   // Logout
   Future<void> logout() async {
     try {
       await _auth.signOut();
-      Get.offAllNamed('/login', parameters: {'role': 'doctor'});
+      Get.offAllNamed(AppRoutes.roleSelection);
     } catch (e) {
       Get.snackbar(
         'Error',

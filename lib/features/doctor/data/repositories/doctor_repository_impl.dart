@@ -29,11 +29,10 @@ class DoctorRepositoryImpl implements DoctorRepository {
       final calledDoc = calledQuery.docs.first;
       final calledDocRef = queuesRef.doc(calledDoc.id);
 
-      // Find current max queue_number among waiting patients
+      // Find current max queue_number among ALL patients for that day to avoid duplicates
       final waitingMaxQuery = await queuesRef
           .where('doctor_id', isEqualTo: doctorId)
           .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
-          .where('status', isEqualTo: 'menunggu')
           .orderBy('queue_number', descending: true)
           .limit(1)
           .get();
@@ -61,6 +60,30 @@ class DoctorRepositoryImpl implements DoctorRepository {
   }
 
   // The rest of the repository methods are not implemented here yet.
+  @override
+  Stream<List<QueueEntity>> getCompletedQueues(String doctorId, DateTime date) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    return _firestore
+        .collection('queues')
+        .where('doctor_id', isEqualTo: doctorId)
+        .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
+        .where('status', isEqualTo: 'selesai')
+        .orderBy('completed_at', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return QueueEntity(
+          id: doc.id,
+          patientName: data['patient_name'] ?? '',
+          queueNumber: data['queue_number'] ?? 0,
+          status: data['status'] ?? '',
+          complaint: data['complaint'] ?? '',
+        );
+      }).toList();
+    });
+  }
+
   @override
   Future<void> callNextPatient(String doctorId) {
     throw UnimplementedError();

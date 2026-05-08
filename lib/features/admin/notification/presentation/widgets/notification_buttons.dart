@@ -101,68 +101,35 @@ class NotificationButtons extends StatelessWidget {
                 ),
 
               // Action buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: controller.isProcessing
-                          ? null
-                          : () => _showConfirmDialog(
-                              context,
-                              'Buka Antrean',
-                              'Kirim notifikasi pembukaan antrean ke semua pasien yang sudah booking untuk jadwal $doctorName?',
-                              () => controller
-                                  .sendQueueOpenedNotificationsForSchedule(
-                                    scheduleId,
-                                  ),
-                            ),
-                      icon: const Icon(Icons.queue, size: 16),
-                      label: const Text(
-                        'Buka Antrean',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3B82F6),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: controller.isProcessing
+                      ? null
+                      : () => _showConfirmDialog(
+                          context,
+                          'Kirim Notifikasi',
+                          'Kirim notifikasi pengingat ke semua pasien bahwa antrean telah dibuka dan dokter $doctorName akan segera praktik?',
+                          () => controller
+                              .sendQueueOpenedNotificationsForSchedule(
+                                scheduleId,
+                              ),
                         ),
-                        elevation: 0,
-                      ),
-                    ),
+                  icon: const Icon(Icons.notifications_active, size: 16),
+                  label: const Text(
+                    'Buka Antrean & Mulai Praktik',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: controller.isProcessing
-                          ? null
-                          : () => _showConfirmDialog(
-                              context,
-                              'Mulai Praktek',
-                              'Kirim notifikasi praktek dimulai ke pasien yang sedang menunggu untuk jadwal $doctorName?',
-                              () => controller
-                                  .sendPracticeStartedNotificationsForSchedule(
-                                    scheduleId,
-                                  ),
-                            ),
-                      icon: const Icon(Icons.play_arrow, size: 16),
-                      label: const Text(
-                        'Mulai Praktek',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 0,
-                      ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B82F6),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    elevation: 0,
                   ),
-                ],
+                ),
               ),
             ],
           ),

@@ -87,19 +87,26 @@ class QueueRemoteDataSource {
         appointmentDate.day,
       );
 
-      // Get current active queue count for this schedule on this specific date
-      // Only count queues that are active (menunggu, dipanggil, or selesai today)
+      // Get the highest queue number for this schedule on this specific date
+      // We don't filter by status because even cancelled queues take up a queue number
       final scheduleQueues = await firestore
           .collection('queues')
           .where('schedule_id', isEqualTo: scheduleId)
-          .where(
-            'appointment_date',
-            isEqualTo: Timestamp.fromDate(normalizedDate),
-          )
-          .where('status', whereIn: ['menunggu', 'dipanggil', 'selesai'])
+          .where('appointment_date', isEqualTo: Timestamp.fromDate(normalizedDate))
+          .orderBy('queue_number', descending: true)
+          .limit(1)
           .get();
 
-      final queueNumber = scheduleQueues.docs.length + 1;
+      int queueNumber = 1;
+      if (scheduleQueues.docs.isNotEmpty) {
+        final data = scheduleQueues.docs.first.data();
+        final qn = data['queue_number'];
+        if (qn is int) {
+          queueNumber = qn + 1;
+        } else if (qn is num) {
+          queueNumber = qn.toInt() + 1;
+        }
+      }
 
       // Create new queue document
       final docRef = await firestore.collection('queues').add({

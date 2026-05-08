@@ -78,16 +78,7 @@ class RegisterPage extends StatelessWidget {
                       obscureText: true,
                     ),
 
-                    CustomDropdown(
-                      label: "Pilih Peran",
-                      selectedValue: role,
-                      items: const ["admin", "dokter", "pasien"],
-                      onChanged: (val) {
-                        if (val != null) {
-                          role.value = val;
-                        }
-                      },
-                    ),
+
 
                     const SizedBox(height: 8),
 

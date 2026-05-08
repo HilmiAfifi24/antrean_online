@@ -185,7 +185,20 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final item = availabilities[index];
-                    final isAvailable = !item.isFull;
+                    
+                    final now = DateTime.now();
+                    final itemDate = item.date;
+                    final endTime = widget.schedule.endTime;
+                    final scheduleEndDateTime = DateTime(
+                      itemDate.year,
+                      itemDate.month,
+                      itemDate.day,
+                      endTime.hour,
+                      endTime.minute,
+                    );
+                    
+                    final isPast = scheduleEndDateTime.isBefore(now);
+                    final isAvailable = !item.isFull && !isPast;
 
                     return Material(
                       color: Colors.transparent,
@@ -240,21 +253,35 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                               '/patient/booking',
                               arguments: specificSchedule,
                             );
-                          } else {
-                            Get.snackbar(
-                              'Penuh',
-                              'Maaf, kuota untuk tanggal ini sudah penuh.',
-                              snackPosition: SnackPosition.TOP,
-                              backgroundColor: Colors.red[50]!,
-                              colorText: Colors.red[900]!,
-                              margin: const EdgeInsets.all(16),
-                              borderRadius: 12,
-                              icon: const Icon(
-                                Icons.event_busy,
-                                color: Color(0xFFE53935),
-                              ),
-                            );
-                          }
+                            } else if (isPast) {
+                              Get.snackbar(
+                                'Waktu Habis',
+                                'Maaf, waktu untuk sesi praktik ini sudah berlalu.',
+                                snackPosition: SnackPosition.TOP,
+                                backgroundColor: Colors.grey[200]!,
+                                colorText: Colors.grey[900]!,
+                                margin: const EdgeInsets.all(16),
+                                borderRadius: 12,
+                                icon: const Icon(
+                                  Icons.timer_off,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            } else {
+                              Get.snackbar(
+                                'Penuh',
+                                'Maaf, kuota untuk tanggal ini sudah penuh.',
+                                snackPosition: SnackPosition.TOP,
+                                backgroundColor: Colors.red[50]!,
+                                colorText: Colors.red[900]!,
+                                margin: const EdgeInsets.all(16),
+                                borderRadius: 12,
+                                icon: const Icon(
+                                  Icons.event_busy,
+                                  color: Color(0xFFE53935),
+                                ),
+                              );
+                            }
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
@@ -330,9 +357,9 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                                   ],
                                 ),
                                 child: Text(
-                                  '${item.currentPatients} / ${item.maxPatients}',
+                                  isPast ? 'Selesai' : '${item.currentPatients} / ${item.maxPatients}',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: isPast ? 12 : 14,
                                     fontWeight: FontWeight.bold,
                                     color: isAvailable
                                         ? const Color(0xFF2E7D32)

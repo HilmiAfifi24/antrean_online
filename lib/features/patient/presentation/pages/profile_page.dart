@@ -290,14 +290,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                   enabled: isEditing,
                                   keyboardType: TextInputType.phone,
                                 ),
-                                const SizedBox(height: 16),
-
-                                // User ID (Read-only)
-                                _buildInfoRow(
-                                  icon: Icons.badge_outlined,
-                                  label: 'User ID',
-                                  value: user?.uid.substring(0, 8) ?? '-',
-                                ),
                               ],
                             ),
                           ),

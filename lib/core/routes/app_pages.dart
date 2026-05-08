@@ -30,6 +30,7 @@ import 'package:antrean_online/features/patient/presentation/pages/select_schedu
 import 'package:antrean_online/features/patient/presentation/pages/booking_form_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/profile_page.dart';
 import 'package:antrean_online/features/doctor/presentation/pages/doctor_home_page.dart';
+import 'package:antrean_online/features/doctor/presentation/pages/doctor_history_page.dart';
 
 // Bindings
 import 'package:antrean_online/features/auth/auth_binding.dart';
@@ -95,6 +96,10 @@ class AppPages {
       name: AppRoutes.doctorHome,
       page: () => const DoctorHomePage(),
       binding: doctor_binding.DoctorBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.doctorHistory,
+      page: () => const DoctorHistoryPage(),
     ),
     GetPage(
       name: AppRoutes.pasien,

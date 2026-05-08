@@ -11,11 +11,11 @@ import '../../domain/usecases/get_schedule_dates_stream.dart';
 import '../../domain/usecases/search_schedules.dart';
 
 class PatientController extends GetxController {
-  final GetAllSchedules getAllSchedules;
+  final GetAllPatientSchedules getAllSchedules;
   final GetSchedulesByDay getSchedulesByDay;
   final GetSchedulesByDayStream getSchedulesByDayStream;
   final GetScheduleDatesStream getScheduleDatesStream;
-  final SearchSchedules searchSchedules;
+  final SearchPatientSchedules searchSchedules;
 
   PatientController({
     required this.getAllSchedules,

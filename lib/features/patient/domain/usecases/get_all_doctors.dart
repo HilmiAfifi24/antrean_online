@@ -1,10 +1,10 @@
 import '../entities/doctor_entity.dart';
 import '../repositories/patient_doctor_repository.dart';
 
-class GetAllDoctors {
+class GetAllPatientDoctors {
   final PatientDoctorRepository repository;
 
-  GetAllDoctors(this.repository);
+  GetAllPatientDoctors(this.repository);
 
   Future<List<DoctorEntity>> call() {
     return repository.getAllDoctors();
