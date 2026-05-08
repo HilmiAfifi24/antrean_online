@@ -154,6 +154,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: unused_local_variable
     final user = FirebaseAuth.instance.currentUser;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -458,6 +459,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildInfoRow({
     required IconData icon,
     required String label,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/custom_input_field.dart';
-import '../widgets/custom_dropdown.dart';
+// import '../widgets/custom_dropdown.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/auth_header.dart';
 
