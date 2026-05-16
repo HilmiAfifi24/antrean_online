@@ -2,6 +2,7 @@
 import 'package:antrean_online/core/routes/app_routes.dart';
 import 'package:antrean_online/features/admin/home/presentation/widgets/dashboard_stats_card.dart';
 import 'package:antrean_online/features/admin/home/presentation/widgets/home_admin_header.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/admin_controller.dart';
@@ -142,6 +143,11 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Request Jadwal Dokter card (full width with pending badge)
+                  _buildScheduleRequestCard(),
 
                   const SizedBox(height: 32),
 
@@ -394,6 +400,110 @@ class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
         ),
       ),
     );
+  }
+
+  Widget _buildScheduleRequestCard() {
+    return StreamBuilder<int>(
+      stream: _pendingRequestCountStream(),
+      builder: (context, snapshot) {
+        final pendingCount = snapshot.data ?? 0;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () =>
+                Get.toNamed(AppRoutes.adminScheduleChangeRequests),
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFFEF4444).withValues(alpha: 0.12),
+                    const Color(0xFFF97316).withValues(alpha: 0.06),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.edit_calendar_rounded,
+                        size: 28, color: Color(0xFFEF4444)),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Request Perubahan Jadwal',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B))),
+                        const SizedBox(height: 4),
+                        Text(
+                          pendingCount > 0
+                              ? '$pendingCount permintaan menunggu review'
+                              : 'Tidak ada permintaan pending',
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: pendingCount > 0
+                                  ? const Color(0xFFEF4444)
+                                  : Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (pendingCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text('$pendingCount',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14)),
+                    ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: Color(0xFFEF4444)),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Stream<int> _pendingRequestCountStream() {
+    return FirebaseFirestore.instance
+        .collection('schedule_change_requests')
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snap) => snap.docs.length);
   }
 
   Widget _buildQuickActionCard({

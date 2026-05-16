@@ -32,6 +32,8 @@ import 'package:antrean_online/features/patient/presentation/pages/booking_form_
 import 'package:antrean_online/features/patient/presentation/pages/profile_page.dart';
 import 'package:antrean_online/features/doctor/presentation/pages/doctor_home_page.dart';
 import 'package:antrean_online/features/doctor/presentation/pages/doctor_history_page.dart';
+import 'package:antrean_online/features/doctor/presentation/pages/schedule_change_request_page.dart';
+import 'package:antrean_online/features/admin/schedule_view/presentation/pages/admin_schedule_change_request_page.dart';
 
 // Bindings
 import 'package:antrean_online/features/auth/auth_binding.dart';
@@ -103,6 +105,10 @@ class AppPages {
       page: () => const DoctorHistoryPage(),
     ),
     GetPage(
+      name: AppRoutes.doctorScheduleChange,
+      page: () => const ScheduleChangeRequestPage(),
+    ),
+    GetPage(
       name: AppRoutes.pasien,
       page: () => const PatientHomePage(),
       binding: PatientBinding(),
@@ -131,6 +137,10 @@ class AppPages {
       name: AppRoutes.adminPatientList,
       page: () => const PatientListViewPage(),
       binding: PatientListViewBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.adminScheduleChangeRequests,
+      page: () => const AdminScheduleChangeRequestPage(),
     ),
     GetPage(
       name: AppRoutes.doctorList,

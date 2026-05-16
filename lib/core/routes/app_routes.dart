@@ -12,11 +12,13 @@ class AppRoutes {
   static const adminPatients = '/admin/patients';
   static const adminQueues = '/admin/queues';
   static const adminPatientList = '/admin/patient-list';
+  static const adminScheduleChangeRequests = '/admin/schedule-change-requests';
 
   // Dokter
   static const dokter = '/dokter';
   static const doctorHome = '/doctor/home';
   static const doctorHistory = '/doctor/history';
+  static const doctorScheduleChange = '/doctor/schedule-change';
 
   // Pasien
   static const pasien = '/pasien';

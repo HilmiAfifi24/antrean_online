@@ -8,6 +8,7 @@ import '../controllers/doctor_controller.dart';
 import '../widgets/current_queue_card.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/queue_card.dart';
+import '../../../../core/routes/app_routes.dart';
 
 class DoctorHomePage extends StatelessWidget {
   const DoctorHomePage({super.key});
@@ -629,6 +630,32 @@ class DoctorHomePage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 elevation: 2,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () =>
+                Get.toNamed(AppRoutes.doctorScheduleChange),
+            icon: const Icon(Icons.edit_calendar_outlined, size: 20),
+            label: Text(
+              'Ajukan Perubahan Jadwal',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1976D2),
+              side: const BorderSide(color: Color(0xFF1976D2), width: 1.5),
+              padding: EdgeInsets.symmetric(
+                vertical: isSmallScreen ? 14 : 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
