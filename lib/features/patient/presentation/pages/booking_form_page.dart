@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../domain/entities/schedule_entity.dart';
+import '../bindings/queue_binding.dart';
+import '../controllers/queue_controller.dart';
 
 // Helper function for formatting date
 String _formatDate(DateTime date) {
@@ -560,43 +562,24 @@ class _BookingFormPageState extends State<BookingFormPage> {
         throw Exception('Maaf, jadwal dokter sudah penuh');
       }
 
-      // Use schedule date as registration date
-      final normalizedDate = DateTime(
-        schedule.date.year,
-        schedule.date.month,
-        schedule.date.day,
+      if (!Get.isRegistered<QueueController>()) {
+        QueueBinding().dependencies();
+      }
+
+      final queueController = Get.find<QueueController>();
+      final queue = await queueController.createBooking(
+        schedule: schedule,
+        patientName: userName ?? '',
+        patientPhone: userPhone,
+        birthDate: birthDate,
+        gender: gender,
+        complaint: complaintController.text.trim(),
+        showSuccessMessage: false,
       );
 
-      // Get current active queue count for this schedule on this specific date
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('queues')
-          .where('schedule_id', isEqualTo: schedule.id)
-          .where(
-            'appointment_date',
-            isEqualTo: Timestamp.fromDate(normalizedDate),
-          )
-          .where('status', whereIn: ['menunggu', 'dipanggil', 'selesai'])
-          .get();
-
-      final queueNumber = querySnapshot.docs.length + 1;
-
-      // Create queue document
-      await FirebaseFirestore.instance.collection('queues').add({
-        'patient_id': user.uid,
-        'patient_name': userName ?? '',
-        'patient_phone': userPhone ?? '',
-        'birth_date': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
-        'gender': gender,
-        'schedule_id': schedule.id,
-        'doctor_id': schedule.doctorId,
-        'doctor_name': schedule.doctorName,
-        'doctor_specialization': schedule.doctorSpecialization,
-        'appointment_date': Timestamp.fromDate(normalizedDate),
-        'queue_number': queueNumber,
-        'status': 'menunggu',
-        'complaint': complaintController.text,
-        'created_at': FieldValue.serverTimestamp(),
-      });
+      if (queue == null) {
+        return;
+      }
 
       // NOTE: Do NOT update a global 'current_patients' on the schedule here.
       // Booking counts should be computed per appointment date by counting
@@ -612,7 +595,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
         if (!mounted) return;
         Get.snackbar(
           'Berhasil',
-          'Antrean berhasil dibuat! Nomor antrean Anda: ${queueNumber.toString().padLeft(3, '0')}',
+          'Antrean berhasil dibuat! Nomor antrean Anda: ${queue.queueNumber.toString().padLeft(3, '0')}',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.green.shade100,
           colorText: Colors.green.shade900,

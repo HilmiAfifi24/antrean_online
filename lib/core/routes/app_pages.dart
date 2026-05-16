@@ -25,6 +25,7 @@ import 'package:antrean_online/features/auth/presentation/pages/admin_page.dart'
 import 'package:antrean_online/features/patient/presentation/pages/patient_home_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/doctor_list_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/queue_page.dart';
+import 'package:antrean_online/features/patient/presentation/pages/queue_detail_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/queue_history_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/select_schedule_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/booking_form_page.dart';
@@ -145,6 +146,11 @@ class AppPages {
       name: AppRoutes.queue,
       page: () => const QueuePage(),
       // Inherits QueueController from PatientBinding globally
+    ),
+    GetPage(
+      name: AppRoutes.queueDetail,
+      page: () => const QueueDetailPage(),
+      // Inherits QueueController & PatientQueueRepository from PatientBinding globally
     ),
     GetPage(
       name: AppRoutes.queueHistory,

@@ -6,7 +6,7 @@ class GetActiveQueue {
 
   GetActiveQueue(this.repository);
 
-  Future<QueueEntity?> call(String patientId) {
-    return repository.getActiveQueue(patientId);
+  Future<List<QueueEntity>> call(String patientId) {
+    return repository.getActiveQueues(patientId);
   }
 }

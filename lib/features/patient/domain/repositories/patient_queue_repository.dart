@@ -1,11 +1,20 @@
 import '../../domain/entities/queue_entity.dart';
 
 abstract class PatientQueueRepository {
-  Future<QueueEntity?> getActiveQueue(String patientId);
+  Future<List<QueueEntity>> getActiveQueues(String patientId);
+
+  Future<bool> validateMultipleBooking({
+    required String patientId,
+    required String doctorId,
+    required DateTime appointmentDate,
+  });
 
   Future<QueueEntity> createQueue({
     required String patientId,
     required String patientName,
+    String? patientPhone,
+    DateTime? birthDate,
+    String? gender,
     required String scheduleId,
     required String doctorId,
     required String doctorName,
@@ -17,7 +26,7 @@ abstract class PatientQueueRepository {
 
   Future<void> cancelQueue(String queueId, String scheduleId);
 
-  Stream<QueueEntity?> watchActiveQueue(String patientId);
+  Stream<List<QueueEntity>> watchActiveQueues(String patientId);
 
   Stream<int?> watchCurrentClinicQueueNumber({
     required String scheduleId,

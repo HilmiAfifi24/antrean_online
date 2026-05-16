@@ -8,14 +8,30 @@ class PatientQueueRepositoryImpl implements PatientQueueRepository {
   PatientQueueRepositoryImpl(this.dataSource);
 
   @override
-  Future<QueueEntity?> getActiveQueue(String patientId) {
-    return dataSource.getActiveQueue(patientId);
+  Future<List<QueueEntity>> getActiveQueues(String patientId) {
+    return dataSource.getActiveQueues(patientId);
+  }
+
+  @override
+  Future<bool> validateMultipleBooking({
+    required String patientId,
+    required String doctorId,
+    required DateTime appointmentDate,
+  }) {
+    return dataSource.validateMultipleBooking(
+      patientId: patientId,
+      doctorId: doctorId,
+      appointmentDate: appointmentDate,
+    );
   }
 
   @override
   Future<QueueEntity> createQueue({
     required String patientId,
     required String patientName,
+    String? patientPhone,
+    DateTime? birthDate,
+    String? gender,
     required String scheduleId,
     required String doctorId,
     required String doctorName,
@@ -27,6 +43,9 @@ class PatientQueueRepositoryImpl implements PatientQueueRepository {
     return dataSource.createQueue(
       patientId: patientId,
       patientName: patientName,
+      patientPhone: patientPhone,
+      birthDate: birthDate,
+      gender: gender,
       scheduleId: scheduleId,
       doctorId: doctorId,
       doctorName: doctorName,
@@ -43,8 +62,8 @@ class PatientQueueRepositoryImpl implements PatientQueueRepository {
   }
 
   @override
-  Stream<QueueEntity?> watchActiveQueue(String patientId) {
-    return dataSource.watchActiveQueue(patientId);
+  Stream<List<QueueEntity>> watchActiveQueues(String patientId) {
+    return dataSource.watchActiveQueues(patientId);
   }
 
   @override

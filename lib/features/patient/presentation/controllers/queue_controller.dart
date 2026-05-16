@@ -12,7 +12,7 @@ class QueueController extends GetxController {
   QueueController({required this.repository});
 
   // Observable variables
-  final Rxn<QueueEntity> _activeQueue = Rxn<QueueEntity>();
+  final RxList<QueueEntity> _activeQueues = <QueueEntity>[].obs;
   final RxnInt _currentClinicQueueNumber = RxnInt();
   final RxInt _waitingAheadCount = 0.obs;
   final RxBool _isLoading = false.obs;
@@ -27,14 +27,16 @@ class QueueController extends GetxController {
   String? _currentWaitingKey;
 
   // Getters
-  QueueEntity? get activeQueue => _activeQueue.value;
+  List<QueueEntity> get activeQueues => List.unmodifiable(_activeQueues);
+  QueueEntity? get activeQueue =>
+      _activeQueues.isEmpty ? null : _activeQueues.first;
   int? get currentClinicQueueNumber => _currentClinicQueueNumber.value;
   int get waitingAheadCount => _waitingAheadCount.value;
   bool get isLoading => _isLoading.value;
-  bool get hasActiveQueue => _activeQueue.value != null;
+  bool get hasActiveQueue => _activeQueues.isNotEmpty;
 
   bool get isPatientInClinic {
-    final queue = _activeQueue.value;
+    final queue = activeQueue;
     final currentQueue = _currentClinicQueueNumber.value;
 
     if (queue == null || currentQueue == null) {
@@ -45,7 +47,7 @@ class QueueController extends GetxController {
   }
 
   int get remainingPatientsBeforeYou {
-    final queue = _activeQueue.value;
+    final queue = activeQueue;
     if (queue == null) {
       return 0;
     }
@@ -67,7 +69,7 @@ class QueueController extends GetxController {
   }
 
   String get queueProgressLabel {
-    final queue = _activeQueue.value;
+    final queue = activeQueue;
     if (queue == null) {
       return '';
     }
@@ -111,25 +113,28 @@ class QueueController extends GetxController {
 
       _currentUserId = nextUserId;
       _queueSubscription?.cancel();
-      _activeQueue.value = null;
+      _activeQueues.clear();
+      _bindCurrentClinicQueue(null);
+      _bindWaitingCount(null);
 
       if (nextUserId == null) {
         return;
       }
 
-      _queueSubscription = repository.watchActiveQueue(nextUserId).listen((
-        queue,
+      _queueSubscription = repository.watchActiveQueues(nextUserId).listen((
+        queues,
       ) {
-        _activeQueue.value = queue;
-        _bindCurrentClinicQueue(queue);
-        _bindWaitingCount(queue);
+        _activeQueues.assignAll(queues);
+        final primaryQueue = queues.isEmpty ? null : queues.first;
+        _bindCurrentClinicQueue(primaryQueue);
+        _bindWaitingCount(primaryQueue);
       });
     }
 
     handleAuthChange(FirebaseAuth.instance.currentUser);
-    _authStateSubscription = FirebaseAuth.instance
-        .authStateChanges()
-        .listen(handleAuthChange);
+    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen(
+      handleAuthChange,
+    );
   }
 
   void _bindCurrentClinicQueue(QueueEntity? queue) {
@@ -202,11 +207,110 @@ class QueueController extends GetxController {
       _isLoading.value = true;
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final queue = await repository.getActiveQueue(user.uid);
-        _activeQueue.value = queue;
+        final queues = await repository.getActiveQueues(user.uid);
+        _activeQueues.assignAll(queues);
       }
     } catch (e) {
       _showError('Gagal memuat antrean: ${e.toString()}');
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  Future<bool> validateMultipleBooking({
+    required String patientId,
+    required String doctorId,
+    required DateTime appointmentDate,
+  }) {
+    return repository.validateMultipleBooking(
+      patientId: patientId,
+      doctorId: doctorId,
+      appointmentDate: appointmentDate,
+    );
+  }
+
+  // Create booking from schedule with multiple-booking validation.
+  Future<QueueEntity?> createBooking({
+    required ScheduleEntity schedule,
+    required String patientName,
+    String? patientPhone,
+    DateTime? birthDate,
+    String? gender,
+    required String complaint,
+    bool showSuccessMessage = true,
+  }) async {
+    try {
+      _isLoading.value = true;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        _showError('User tidak terautentikasi');
+        return null;
+      }
+
+      // Check if schedule is full
+      if (schedule.isFull) {
+        _showError('Maaf, jadwal dokter sudah penuh');
+        return null;
+      }
+
+      final isValid = await validateMultipleBooking(
+        patientId: user.uid,
+        doctorId: schedule.doctorId,
+        appointmentDate: schedule.date,
+      );
+
+      if (!isValid) {
+        _showError(
+          'Anda sudah memiliki antrean aktif dengan dokter ini pada tanggal tersebut.',
+        );
+        return null;
+      }
+
+      final queue = await repository.createQueue(
+        patientId: user.uid,
+        patientName: patientName,
+        patientPhone: patientPhone,
+        birthDate: birthDate,
+        gender: gender,
+        scheduleId: schedule.id,
+        doctorId: schedule.doctorId,
+        doctorName: schedule.doctorName,
+        doctorSpecialization: schedule.doctorSpecialization,
+        appointmentDate: schedule.date,
+        appointmentTime: schedule.getTimeRange(),
+        complaint: complaint,
+      );
+
+      _activeQueues.add(queue);
+      _activeQueues.sort((a, b) {
+        final dateCompare = a.appointmentDate.compareTo(b.appointmentDate);
+        if (dateCompare != 0) return dateCompare;
+        return a.queueNumber.compareTo(b.queueNumber);
+      });
+
+      if (showSuccessMessage) {
+        Get.snackbar(
+          'Berhasil',
+          'Antrean berhasil dibuat! Nomor antrean Anda: ${queue.queueNumber}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.shade100,
+          colorText: Colors.green.shade900,
+          duration: const Duration(seconds: 3),
+          icon: const Icon(Icons.check_circle, color: Colors.green),
+        );
+      }
+
+      return queue;
+    } catch (e) {
+      final errorMessage =
+          e.toString().contains(
+            'Anda sudah memiliki antrean aktif dengan dokter ini pada tanggal tersebut.',
+          )
+          ? 'Anda sudah memiliki antrean aktif dengan dokter ini pada tanggal tersebut.'
+          : 'Gagal membuat antrean: ${e.toString()}';
+      _showError(errorMessage);
+      return null;
     } finally {
       _isLoading.value = false;
     }
@@ -218,58 +322,20 @@ class QueueController extends GetxController {
     required String patientName,
     required String complaint,
   }) async {
-    try {
-      _isLoading.value = true;
+    final queue = await createBooking(
+      schedule: schedule,
+      patientName: patientName,
+      complaint: complaint,
+    );
 
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        _showError('User tidak terautentikasi');
-        return;
-      }
-
-      // Check if schedule is full
-      if (schedule.isFull) {
-        _showError('Maaf, jadwal dokter sudah penuh');
-        return;
-      }
-
-      // Create queue
-      final queue = await repository.createQueue(
-        patientId: user.uid,
-        patientName: patientName,
-        scheduleId: schedule.id,
-        doctorId: schedule.doctorId,
-        doctorName: schedule.doctorName,
-        doctorSpecialization: schedule.doctorSpecialization,
-        appointmentDate: schedule.date,
-        appointmentTime: schedule.getTimeRange(),
-        complaint: complaint,
-      );
-
-      _activeQueue.value = queue;
-
-      Get.snackbar(
-        'Berhasil',
-        'Antrean berhasil dibuat! Nomor antrean Anda: ${queue.queueNumber}',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green.shade100,
-        colorText: Colors.green.shade900,
-        duration: const Duration(seconds: 3),
-        icon: const Icon(Icons.check_circle, color: Colors.green),
-      );
-
-      // Navigate back to queue page
+    if (queue != null) {
       Get.back();
-    } catch (e) {
-      _showError('Gagal membuat antrean: ${e.toString()}');
-    } finally {
-      _isLoading.value = false;
     }
   }
 
   // Cancel queue
-  Future<void> cancelQueue() async {
-    final queue = _activeQueue.value;
+  Future<void> cancelQueue([QueueEntity? selectedQueue]) async {
+    final queue = selectedQueue ?? activeQueue;
     if (queue == null) return;
 
     try {
@@ -305,7 +371,7 @@ class QueueController extends GetxController {
       if (confirmed == true) {
         _isLoading.value = true;
         await repository.cancelQueue(queue.id, queue.scheduleId);
-        _activeQueue.value = null;
+        _activeQueues.removeWhere((item) => item.id == queue.id);
 
         Get.snackbar(
           'Berhasil',

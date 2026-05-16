@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../../domain/entities/queue_entity.dart';
 import '../controllers/queue_controller.dart';
+import '../../../../core/routes/app_routes.dart';
 
 class QueuePage extends GetView<QueueController> {
   const QueuePage({super.key});
@@ -170,309 +172,53 @@ class QueuePage extends GetView<QueueController> {
   }
 
   Widget _buildActiveQueueView() {
-    final queue = controller.activeQueue!;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Current Queue in Clinic Card (Realtime)
-          Obx(() {
-            final currentQueueNumber = controller.currentClinicQueueNumber;
-
-            return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF34D399)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.green.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.medical_services_rounded,
-                          color: Colors.white.withValues(alpha: 0.9),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Antrean Saat Ini di Klinik',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (currentQueueNumber != null)
-                      Text(
-                        currentQueueNumber.toString().padLeft(3, '0'),
-                        style: const TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 4,
-                        ),
-                      )
-                    else
-                      Text(
-                        '---',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withValues(alpha: 0.5),
-                          letterSpacing: 4,
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    Text(
-                      currentQueueNumber != null
-                          ? 'Sedang dilayani'
-                          : 'Belum ada yang dipanggil',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.9),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-          }),
-
-          // Queue Number Card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Nomor Antrean Anda',
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Antrean Aktif',
                   style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  queue.queueNumber.toString().padLeft(3, '0'),
-                  style: const TextStyle(
-                    fontSize: 64,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 4,
+                    color: Color(0xFF212121),
                   ),
                 ),
-                const SizedBox(height: 12),
-
-                // Estimated waiting info
-                Obx(() {
-                  final remainingBeforeYou =
-                      controller.remainingPatientsBeforeYou;
-                  final progressLabel = controller.queueProgressLabel;
-
-                  // ── Estimasi Waktu Panggilan (Fitur 5) ──────────
-                  const int avgMinutesPerPatient = 10;
-                  final estimatedMinutes =
-                      remainingBeforeYou * avgMinutesPerPatient;
-                  final estimatedTime = DateTime.now().add(
-                    Duration(minutes: estimatedMinutes),
-                  );
-                  final estimatedLabel =
-                      '${estimatedTime.hour.toString().padLeft(2, '0')}'
-                      '.${estimatedTime.minute.toString().padLeft(2, '0')}';
-
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Chip: sisa orang / berikutnya
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.people_outline,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              progressLabel,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Chip: estimasi waktu (hanya jika masih ada antrian)
-                      if (remainingBeforeYou > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.4),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.access_time_rounded,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Estimasi dipanggil: Pukul $estimatedLabel',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  );
-                }),
-
-
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(queue.status),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    queue.statusText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Doctor Info Card
-          _buildInfoCard(
-            title: 'Informasi Dokter',
-            children: [
-              _buildInfoRow(Icons.person, 'Dokter', queue.doctorName),
-              const SizedBox(height: 12),
-              _buildInfoRow(
-                Icons.medical_services,
-                'Spesialisasi',
-                queue.doctorSpecialization,
+              ),
+              TextButton.icon(
+                onPressed: () => Get.toNamed('/patient/select-schedule'),
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('Tambah'),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Appointment Info Card
-          _buildInfoCard(
-            title: 'Informasi Janji Temu',
-            children: [
-              _buildInfoRow(
-                Icons.calendar_today,
-                'Tanggal',
-                queue.formattedDate,
-              ),
-              const SizedBox(height: 12),
-              _buildInfoRow(Icons.access_time, 'Waktu', queue.appointmentTime),
-              const SizedBox(height: 12),
-              _buildInfoRow(Icons.note_alt, 'Keluhan', queue.complaint),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Cancel Button (only if status is 'menunggu')
-          if (queue.status == 'menunggu')
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => controller.cancelQueue(),
-                icon: const Icon(Icons.cancel_outlined),
-                label: const Text('Batalkan Antrean'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red, width: 2),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
+          const SizedBox(height: 12),
+          ...controller.activeQueues.map(
+            (queue) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildQueueSummaryCard(queue),
             ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard({
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Container(
+  Widget _buildQueueSummaryCard(QueueEntity queue) {
+    return InkWell(
+      onTap: () => Get.toNamed(AppRoutes.queueDetail, arguments: queue),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE3F2FD)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -484,19 +230,128 @@ class QueuePage extends GetView<QueueController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1976D2),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 76,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      queue.queueNumber.toString().padLeft(3, '0'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    Text(
+                      'Nomor',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            queue.doctorName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF212121),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(queue.status),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            queue.statusText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildInfoRow(
+                      Icons.medical_services,
+                      'Poli',
+                      queue.doctorSpecialization,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildInfoRow(
+                      Icons.calendar_today,
+                      'Tanggal',
+                      queue.formattedDate,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildInfoRow(
+                      Icons.access_time,
+                      'Waktu',
+                      queue.appointmentTime,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          ...children,
+          if (queue.complaint.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _buildInfoRow(Icons.note_alt, 'Keluhan', queue.complaint),
+          ],
+          if (queue.status == 'menunggu') ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => controller.cancelQueue(queue),
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('Batalkan Antrean'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
-    );
+      ),  // Container
+    );   // InkWell
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {

@@ -4,6 +4,9 @@ import '../repositories/patient_queue_repository.dart';
 class CreateQueueParams {
   final String patientId;
   final String patientName;
+  final String? patientPhone;
+  final DateTime? birthDate;
+  final String? gender;
   final String scheduleId;
   final String doctorId;
   final String doctorName;
@@ -15,6 +18,9 @@ class CreateQueueParams {
   CreateQueueParams({
     required this.patientId,
     required this.patientName,
+    this.patientPhone,
+    this.birthDate,
+    this.gender,
     required this.scheduleId,
     required this.doctorId,
     required this.doctorName,
@@ -34,6 +40,9 @@ class CreateQueue {
     return repository.createQueue(
       patientId: params.patientId,
       patientName: params.patientName,
+      patientPhone: params.patientPhone,
+      birthDate: params.birthDate,
+      gender: params.gender,
       scheduleId: params.scheduleId,
       doctorId: params.doctorId,
       doctorName: params.doctorName,

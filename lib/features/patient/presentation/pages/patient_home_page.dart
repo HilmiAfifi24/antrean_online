@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../controllers/patient_controller.dart';
+import '../controllers/queue_controller.dart';
+import '../../domain/entities/queue_entity.dart';
 import '../../domain/entities/schedule_entity.dart';
 import '../widgets/booking_date_picker_sheet.dart';
 
@@ -13,6 +15,7 @@ class PatientHomePage extends GetView<PatientController> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.width < 360;
+    final queueController = Get.find<QueueController>();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -231,6 +234,15 @@ class PatientHomePage extends GetView<PatientController> {
                   ),
                 ),
 
+                SliverToBoxAdapter(
+                  child: Obx(
+                    () => _buildActiveQueuesSection(
+                      queueController.activeQueues,
+                      isSmallScreen,
+                    ),
+                  ),
+                ),
+
                 // Day Filter Tabs
                 SliverToBoxAdapter(
                   child: Container(
@@ -366,6 +378,7 @@ class PatientHomePage extends GetView<PatientController> {
                   builder: (controller) {
                     if (controller.isLoading) {
                       return SliverFillRemaining(
+                        hasScrollBody: false,
                         child: Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -400,6 +413,7 @@ class PatientHomePage extends GetView<PatientController> {
 
                     if (controller.filteredSchedules.isEmpty) {
                       return SliverFillRemaining(
+                        hasScrollBody: false,
                         child: Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -533,6 +547,229 @@ class PatientHomePage extends GetView<PatientController> {
         ),
       ),
     );
+  }
+
+  Widget _buildActiveQueuesSection(
+    List<QueueEntity> queues,
+    bool isSmallScreen,
+  ) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 16 : 20),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Antrean Aktif',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF212121),
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Get.toNamed(AppRoutes.queue),
+                  child: const Text('Lihat Semua'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (queues.isEmpty)
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 16 : 20),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE0E0E0)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2196F3).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.event_available_outlined,
+                      color: Color(0xFF1976D2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Belum ada antrean aktif',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            SizedBox(
+              height: isSmallScreen ? 164 : 172,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 16 : 20,
+                ),
+                itemCount: queues.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  return _buildActiveQueueCard(queues[index], isSmallScreen);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveQueueCard(QueueEntity queue, bool isSmallScreen) {
+    return InkWell(
+      onTap: () => Get.toNamed(AppRoutes.queueDetail, arguments: queue),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: isSmallScreen ? 284 : 316,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE3F2FD), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    queue.queueNumber.toString().padLeft(3, '0'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    queue.doctorName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF212121),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildQueueMeta(Icons.medical_services, queue.doctorSpecialization),
+            const SizedBox(height: 8),
+            _buildQueueMeta(Icons.calendar_today, queue.formattedDate),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQueueMeta(
+                    Icons.access_time,
+                    queue.appointmentTime,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getQueueStatusColor(queue.status),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    queue.statusText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQueueMeta(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _getQueueStatusColor(String status) {
+    switch (status) {
+      case 'menunggu':
+        return Colors.blue;
+      case 'dipanggil':
+        return Colors.green;
+      case 'selesai':
+        return Colors.grey;
+      case 'dibatalkan':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildDayChip(String day, bool isSelected) {

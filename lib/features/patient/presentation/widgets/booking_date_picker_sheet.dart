@@ -185,7 +185,7 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final item = availabilities[index];
-                    
+
                     final now = DateTime.now();
                     final itemDate = item.date;
                     final endTime = widget.schedule.endTime;
@@ -196,7 +196,7 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                       endTime.hour,
                       endTime.minute,
                     );
-                    
+
                     final isPast = scheduleEndDateTime.isBefore(now);
                     final isAvailable = !item.isFull && !isPast;
 
@@ -209,26 +209,7 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                             import_queue_binding.QueueBinding().dependencies();
                           }
 
-                          var queueController = Get.find<QueueController>();
-                          if (queueController.hasActiveQueue) {
-                            final activeDate =
-                                queueController.activeQueue?.formattedDate ??
-                                '';
-                            Get.snackbar(
-                              'Gagal',
-                              'Anda sudah memiliki antrean aktif pada tanggal $activeDate. Silakan selesaikan atau batalkan antrean sebelumnya.',
-                              snackPosition: SnackPosition.TOP,
-                              backgroundColor: Colors.orange[50]!,
-                              colorText: Colors.orange[900]!,
-                              margin: const EdgeInsets.all(16),
-                              borderRadius: 12,
-                              icon: const Icon(
-                                Icons.warning_amber_rounded,
-                                color: Color(0xFFF57C00),
-                              ),
-                            );
-                            return; // Stop execution
-                          }
+                          Get.find<QueueController>();
 
                           if (isAvailable) {
                             Get.back(); // close bottom sheet
@@ -253,35 +234,35 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                               '/patient/booking',
                               arguments: specificSchedule,
                             );
-                            } else if (isPast) {
-                              Get.snackbar(
-                                'Waktu Habis',
-                                'Maaf, waktu untuk sesi praktik ini sudah berlalu.',
-                                snackPosition: SnackPosition.TOP,
-                                backgroundColor: Colors.grey[200]!,
-                                colorText: Colors.grey[900]!,
-                                margin: const EdgeInsets.all(16),
-                                borderRadius: 12,
-                                icon: const Icon(
-                                  Icons.timer_off,
-                                  color: Colors.grey,
-                                ),
-                              );
-                            } else {
-                              Get.snackbar(
-                                'Penuh',
-                                'Maaf, kuota untuk tanggal ini sudah penuh.',
-                                snackPosition: SnackPosition.TOP,
-                                backgroundColor: Colors.red[50]!,
-                                colorText: Colors.red[900]!,
-                                margin: const EdgeInsets.all(16),
-                                borderRadius: 12,
-                                icon: const Icon(
-                                  Icons.event_busy,
-                                  color: Color(0xFFE53935),
-                                ),
-                              );
-                            }
+                          } else if (isPast) {
+                            Get.snackbar(
+                              'Waktu Habis',
+                              'Maaf, waktu untuk sesi praktik ini sudah berlalu.',
+                              snackPosition: SnackPosition.TOP,
+                              backgroundColor: Colors.grey[200]!,
+                              colorText: Colors.grey[900]!,
+                              margin: const EdgeInsets.all(16),
+                              borderRadius: 12,
+                              icon: const Icon(
+                                Icons.timer_off,
+                                color: Colors.grey,
+                              ),
+                            );
+                          } else {
+                            Get.snackbar(
+                              'Penuh',
+                              'Maaf, kuota untuk tanggal ini sudah penuh.',
+                              snackPosition: SnackPosition.TOP,
+                              backgroundColor: Colors.red[50]!,
+                              colorText: Colors.red[900]!,
+                              margin: const EdgeInsets.all(16),
+                              borderRadius: 12,
+                              icon: const Icon(
+                                Icons.event_busy,
+                                color: Color(0xFFE53935),
+                              ),
+                            );
+                          }
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
@@ -357,7 +338,9 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                                   ],
                                 ),
                                 child: Text(
-                                  isPast ? 'Selesai' : '${item.currentPatients} / ${item.maxPatients}',
+                                  isPast
+                                      ? 'Selesai'
+                                      : '${item.currentPatients} / ${item.maxPatients}',
                                   style: TextStyle(
                                     fontSize: isPast ? 12 : 14,
                                     fontWeight: FontWeight.bold,
