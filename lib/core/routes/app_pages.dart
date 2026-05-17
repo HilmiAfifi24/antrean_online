@@ -27,11 +27,13 @@ import 'package:antrean_online/features/patient/presentation/pages/doctor_list_p
 import 'package:antrean_online/features/patient/presentation/pages/queue_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/queue_detail_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/queue_history_page.dart';
+import 'package:antrean_online/features/patient/presentation/pages/patient_reschedule_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/select_schedule_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/booking_form_page.dart';
 import 'package:antrean_online/features/patient/presentation/pages/profile_page.dart';
 import 'package:antrean_online/features/doctor/presentation/pages/doctor_home_page.dart';
 import 'package:antrean_online/features/doctor/presentation/pages/doctor_history_page.dart';
+import 'package:antrean_online/features/doctor/presentation/pages/doctor_session_cancellation_page.dart';
 import 'package:antrean_online/features/doctor/presentation/pages/schedule_change_request_page.dart';
 import 'package:antrean_online/features/admin/schedule_view/presentation/pages/admin_schedule_change_request_page.dart';
 
@@ -109,6 +111,10 @@ class AppPages {
       page: () => const ScheduleChangeRequestPage(),
     ),
     GetPage(
+      name: AppRoutes.doctorSessionCancellation,
+      page: () => const DoctorSessionCancellationPage(),
+    ),
+    GetPage(
       name: AppRoutes.pasien,
       page: () => const PatientHomePage(),
       binding: PatientBinding(),
@@ -166,6 +172,10 @@ class AppPages {
       name: AppRoutes.queueHistory,
       page: () => const QueueHistoryPage(),
       binding: QueueHistoryBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.patientReschedule,
+      page: () => const PatientReschedulePage(),
     ),
     GetPage(
       name: AppRoutes.selectSchedule,

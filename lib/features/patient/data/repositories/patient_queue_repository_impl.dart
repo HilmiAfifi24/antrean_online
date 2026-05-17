@@ -1,4 +1,5 @@
 import '../../domain/entities/queue_entity.dart';
+import '../../domain/entities/schedule_entity.dart';
 import '../../domain/repositories/patient_queue_repository.dart';
 import '../datasources/queue_remote_datasource.dart';
 
@@ -59,6 +60,29 @@ class PatientQueueRepositoryImpl implements PatientQueueRepository {
   @override
   Future<void> cancelQueue(String queueId, String scheduleId) {
     return dataSource.cancelQueue(queueId, scheduleId);
+  }
+
+  @override
+  Future<void> validateRescheduleEligibility(String queueId) {
+    return dataSource.validateRescheduleEligibility(queueId);
+  }
+
+  @override
+  Future<List<ScheduleEntity>> getAvailableRescheduleDates(String queueId) {
+    return dataSource.getAvailableRescheduleDates(queueId);
+  }
+
+  @override
+  Future<QueueEntity> rescheduleQueue({
+    required String queueId,
+    required String newScheduleId,
+    required DateTime newDate,
+  }) {
+    return dataSource.rescheduleQueue(
+      queueId: queueId,
+      newScheduleId: newScheduleId,
+      newDate: newDate,
+    );
   }
 
   @override

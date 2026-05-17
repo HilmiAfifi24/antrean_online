@@ -59,8 +59,14 @@ class QueueDetailController extends GetxController {
   String get queueProgressLabel {
     final q = _queue.value;
     if (q == null) return '';
-    if (q.status == 'selesai') return 'Pemeriksaan selesai';
-    if (q.status == 'dibatalkan') return 'Antrean dibatalkan';
+    if (q.status == 'selesai' || q.status == 'completed') {
+      return 'Pemeriksaan selesai';
+    }
+    if (q.status == 'dibatalkan' ||
+        q.status == 'cancelled_by_patient' ||
+        q.status == 'cancelled_by_doctor') {
+      return 'Antrean dibatalkan';
+    }
     if (q.status == 'dipanggil' || isPatientInClinic) {
       return 'Anda sedang di dalam klinik';
     }
@@ -234,9 +240,9 @@ class _QueueDetailPageState extends State<QueueDetailPage>
                               const SizedBox(height: 16),
                               _buildComplaintCard(queue),
                             ],
-                            if (queue.status == 'menunggu') ...[
+                            if (queue.canRequestReschedule) ...[
                               const SizedBox(height: 24),
-                              _buildCancelButton(),
+                              _buildActionButtons(queue),
                             ],
                           ],
                         ),
@@ -301,8 +307,7 @@ class _QueueDetailPageState extends State<QueueDetailPage>
   // ─── Clinic Status Card ───────────────────────────────────────────────────
 
   Widget _buildClinicStatusCard(QueueEntity queue) {
-    final isActive =
-        queue.status == 'menunggu' || queue.status == 'dipanggil';
+    final isActive = queue.isActive;
     final clinicNum = _controller.currentClinicQueueNumber;
 
     Color cardColor;
@@ -311,18 +316,18 @@ class _QueueDetailPageState extends State<QueueDetailPage>
     String subtitleText;
 
     if (!isActive) {
-      cardColor = queue.status == 'selesai'
+      cardColor = queue.status == 'selesai' || queue.status == 'completed'
           ? const Color(0xFF43A047)
           : Colors.grey;
-      statusIcon = queue.status == 'selesai'
+      statusIcon = queue.status == 'selesai' || queue.status == 'completed'
           ? Icons.check_circle_rounded
           : Icons.cancel_rounded;
-      titleText = queue.status == 'selesai'
+      titleText = queue.status == 'selesai' || queue.status == 'completed'
           ? 'Pemeriksaan Selesai'
           : 'Antrean Dibatalkan';
-      subtitleText = queue.status == 'selesai'
+      subtitleText = queue.status == 'selesai' || queue.status == 'completed'
           ? 'Terima kasih telah menggunakan layanan kami'
-          : 'Antrean ini telah dibatalkan';
+          : queue.cancellationReason ?? 'Antrean ini telah dibatalkan';
     } else if (_controller.isPatientInClinic ||
         queue.status == 'dipanggil') {
       cardColor = const Color(0xFF00897B);
@@ -527,7 +532,9 @@ class _QueueDetailPageState extends State<QueueDetailPage>
               ],
             ),
           ),
-          if (queue.status == 'menunggu') ...[
+          if (queue.status == 'menunggu' ||
+              queue.status == 'waiting' ||
+              queue.status == 'rescheduled') ...[
             const SizedBox(height: 12),
             Obx(
               () => Text(
@@ -622,38 +629,64 @@ class _QueueDetailPageState extends State<QueueDetailPage>
     );
   }
 
-  // ─── Cancel Button ────────────────────────────────────────────────────────
+  // ─── Action Buttons ───────────────────────────────────────────────────────
 
-  Widget _buildCancelButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () async {
-          final queueController = Get.find<QueueController>();
-          final q = _controller.queue;
-          if (q == null) return;
-          await queueController.cancelQueue(q);
-          // After cancellation, the stream will update the queue status
-          // and the page will rebuild. Go back if cancelled.
-          if (_controller.queue?.status == 'dibatalkan' ||
-              !(_controller.queue?.isActive ?? false)) {
-            Get.back();
-          }
-        },
-        icon: const Icon(Icons.cancel_outlined, size: 18),
-        label: const Text(
-          'Batalkan Antrean',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.red,
-          side: const BorderSide(color: Colors.red, width: 1.5),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+  Widget _buildActionButtons(QueueEntity queue) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () =>
+                Get.toNamed(AppRoutes.patientReschedule, arguments: queue),
+            icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+            label: const Text(
+              'Reschedule',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1976D2),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
           ),
         ),
-      ),
+        if (queue.status == 'menunggu' || queue.status == 'waiting') ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final queueController = Get.find<QueueController>();
+                final q = _controller.queue;
+                if (q == null) return;
+                await queueController.cancelQueue(q);
+                if (_controller.queue?.status == 'dibatalkan' ||
+                    _controller.queue?.status == 'cancelled_by_patient' ||
+                    !(_controller.queue?.isActive ?? false)) {
+                  Get.back();
+                }
+              },
+              icon: const Icon(Icons.cancel_outlined, size: 18),
+              label: const Text(
+                'Batalkan Antrean',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red, width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -756,13 +789,20 @@ class _QueueDetailPageState extends State<QueueDetailPage>
   Color _statusColor(String status) {
     switch (status) {
       case 'menunggu':
+      case 'waiting':
         return Colors.blue;
       case 'dipanggil':
+      case 'ongoing':
         return Colors.green;
       case 'selesai':
+      case 'completed':
         return Colors.grey;
       case 'dibatalkan':
+      case 'cancelled_by_patient':
+      case 'cancelled_by_doctor':
         return Colors.red;
+      case 'rescheduled':
+        return Colors.purple;
       default:
         return Colors.grey;
     }
@@ -771,13 +811,20 @@ class _QueueDetailPageState extends State<QueueDetailPage>
   IconData _statusIcon(String status) {
     switch (status) {
       case 'menunggu':
+      case 'waiting':
         return Icons.hourglass_top_rounded;
       case 'dipanggil':
+      case 'ongoing':
         return Icons.campaign_rounded;
       case 'selesai':
+      case 'completed':
         return Icons.check_circle_rounded;
       case 'dibatalkan':
+      case 'cancelled_by_patient':
+      case 'cancelled_by_doctor':
         return Icons.cancel_rounded;
+      case 'rescheduled':
+        return Icons.edit_calendar_rounded;
       default:
         return Icons.help_rounded;
     }

@@ -28,6 +28,7 @@ class ScheduleEntity {
   });
 
   bool get isFull => currentPatients >= maxPatients;
+  int get availableSlots => maxPatients - currentPatients;
 
   String get doctorInitials {
     if (doctorName.isEmpty) return 'DR';

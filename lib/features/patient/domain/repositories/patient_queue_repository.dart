@@ -1,4 +1,5 @@
 import '../../domain/entities/queue_entity.dart';
+import '../entities/schedule_entity.dart';
 
 abstract class PatientQueueRepository {
   Future<List<QueueEntity>> getActiveQueues(String patientId);
@@ -25,6 +26,16 @@ abstract class PatientQueueRepository {
   });
 
   Future<void> cancelQueue(String queueId, String scheduleId);
+
+  Future<void> validateRescheduleEligibility(String queueId);
+
+  Future<List<ScheduleEntity>> getAvailableRescheduleDates(String queueId);
+
+  Future<QueueEntity> rescheduleQueue({
+    required String queueId,
+    required String newScheduleId,
+    required DateTime newDate,
+  });
 
   Stream<List<QueueEntity>> watchActiveQueues(String patientId);
 

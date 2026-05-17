@@ -660,6 +660,31 @@ class DoctorHomePage extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => Get.toNamed(AppRoutes.doctorSessionCancellation),
+            icon: const Icon(Icons.event_busy_rounded, size: 20),
+            label: Text(
+              'Batalkan Sesi & Reschedule',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red, width: 1.5),
+              padding: EdgeInsets.symmetric(
+                vertical: isSmallScreen ? 14 : 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -688,7 +713,13 @@ class DoctorHomePage extends StatelessWidget {
               'appointment_date',
               isEqualTo: Timestamp.fromDate(startOfDay),
             )
-            .where('status', whereIn: ['menunggu', 'dipanggil'])
+            .where('status', whereIn: [
+              'menunggu',
+              'waiting',
+              'dipanggil',
+              'ongoing',
+              'rescheduled',
+            ])
             .orderBy('queue_number')
             .snapshots(),
         builder: (context, snapshot) {

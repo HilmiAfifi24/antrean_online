@@ -12,6 +12,9 @@ class QueueEntity {
   final String status; // 'menunggu', 'dipanggil', 'selesai', 'dibatalkan'
   final String complaint;
   final DateTime createdAt;
+  final Map<String, dynamic>? rescheduledFrom;
+  final DateTime? rescheduledAt;
+  final String? cancellationReason;
 
   QueueEntity({
     required this.id,
@@ -27,19 +30,30 @@ class QueueEntity {
     required this.status,
     required this.complaint,
     required this.createdAt,
+    this.rescheduledFrom,
+    this.rescheduledAt,
+    this.cancellationReason,
   });
 
   // Helper getters
   String get statusText {
     switch (status) {
       case 'menunggu':
+      case 'waiting':
         return 'Menunggu';
       case 'dipanggil':
+      case 'ongoing':
         return 'Dipanggil';
       case 'selesai':
+      case 'completed':
         return 'Selesai';
       case 'dibatalkan':
+      case 'cancelled_by_patient':
         return 'Dibatalkan';
+      case 'cancelled_by_doctor':
+        return 'Dibatalkan Dokter';
+      case 'rescheduled':
+        return 'Dijadwalkan Ulang';
       default:
         return 'Unknown';
     }
@@ -75,6 +89,17 @@ class QueueEntity {
   }
 
   bool get isActive {
-    return (status == 'menunggu' || status == 'dipanggil') && !isExpired;
+    return (status == 'menunggu' ||
+            status == 'waiting' ||
+            status == 'dipanggil' ||
+            status == 'ongoing' ||
+            status == 'rescheduled') &&
+        !isExpired;
+  }
+
+  bool get canRequestReschedule {
+    return status == 'menunggu' ||
+        status == 'waiting' ||
+        status == 'cancelled_by_doctor';
   }
 }

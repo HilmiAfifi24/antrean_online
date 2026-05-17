@@ -16,6 +16,10 @@ class QueueController extends GetxController {
   final RxnInt _currentClinicQueueNumber = RxnInt();
   final RxInt _waitingAheadCount = 0.obs;
   final RxBool _isLoading = false.obs;
+  final RxList<ScheduleEntity> _availableRescheduleDates =
+      <ScheduleEntity>[].obs;
+  final Rxn<ScheduleEntity> _selectedRescheduleSchedule =
+      Rxn<ScheduleEntity>();
 
   // Stream subscription
   StreamSubscription? _queueSubscription;
@@ -34,6 +38,10 @@ class QueueController extends GetxController {
   int get waitingAheadCount => _waitingAheadCount.value;
   bool get isLoading => _isLoading.value;
   bool get hasActiveQueue => _activeQueues.isNotEmpty;
+  List<ScheduleEntity> get availableRescheduleDates =>
+      List.unmodifiable(_availableRescheduleDates);
+  ScheduleEntity? get selectedRescheduleSchedule =>
+      _selectedRescheduleSchedule.value;
 
   bool get isPatientInClinic {
     final queue = activeQueue;
@@ -227,6 +235,113 @@ class QueueController extends GetxController {
       doctorId: doctorId,
       appointmentDate: appointmentDate,
     );
+  }
+
+  Future<bool> validateRescheduleEligibility(QueueEntity queue) async {
+    try {
+      await repository.validateRescheduleEligibility(queue.id);
+      return true;
+    } catch (e) {
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+      return false;
+    }
+  }
+
+  Future<void> loadAvailableRescheduleDates(QueueEntity queue) async {
+    try {
+      _isLoading.value = true;
+      _selectedRescheduleSchedule.value = null;
+      final schedules = await repository.getAvailableRescheduleDates(queue.id);
+      _availableRescheduleDates.assignAll(schedules);
+      if (schedules.isNotEmpty) {
+        _selectedRescheduleSchedule.value = schedules.first;
+      }
+    } catch (e) {
+      _availableRescheduleDates.clear();
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  void selectRescheduleDate(ScheduleEntity schedule) {
+    _selectedRescheduleSchedule.value = schedule;
+  }
+
+  Future<bool> rescheduleQueue(QueueEntity queue) async {
+    final schedule = _selectedRescheduleSchedule.value;
+    if (schedule == null) {
+      _showError('Pilih tanggal baru terlebih dahulu');
+      return false;
+    }
+
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Jadwalkan Ulang?',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin menjadwalkan ulang antrean ini?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('Batal', style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1976D2),
+            ),
+            child: const Text(
+              'Ya, Reschedule',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return false;
+
+    try {
+      _isLoading.value = true;
+      final updated = await repository.rescheduleQueue(
+        queueId: queue.id,
+        newScheduleId: schedule.id,
+        newDate: schedule.date,
+      );
+
+      final index = _activeQueues.indexWhere((item) => item.id == queue.id);
+      if (index >= 0) {
+        _activeQueues[index] = updated;
+      } else {
+        _activeQueues.add(updated);
+      }
+      _activeQueues.sort((a, b) {
+        final dateCompare = a.appointmentDate.compareTo(b.appointmentDate);
+        if (dateCompare != 0) return dateCompare;
+        return a.queueNumber.compareTo(b.queueNumber);
+      });
+
+      Get.snackbar(
+        'Berhasil',
+        'Antrean berhasil dijadwalkan ulang. Nomor baru: ${updated.queueNumber}',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.shade100,
+        colorText: Colors.green.shade900,
+        duration: const Duration(seconds: 3),
+        icon: const Icon(Icons.check_circle, color: Colors.green),
+      );
+      return true;
+    } catch (e) {
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+      return false;
+    } finally {
+      _isLoading.value = false;
+    }
   }
 
   // Create booking from schedule with multiple-booking validation.

@@ -6,6 +6,9 @@ import '../../domain/repositories/patient_queue_repository.dart';
 import '../../domain/usecases/get_active_queue.dart';
 import '../../domain/usecases/create_queue.dart';
 import '../../domain/usecases/cancel_queue.dart';
+import '../../domain/usecases/get_available_reschedule_dates.dart';
+import '../../domain/usecases/reschedule_queue.dart';
+import '../../domain/usecases/validate_reschedule_eligibility.dart';
 import '../controllers/queue_controller.dart';
 
 class QueueBinding extends Bindings {
@@ -27,6 +30,9 @@ class QueueBinding extends Bindings {
     Get.put(GetActiveQueue(Get.find()), permanent: true);
     Get.put(CreateQueue(Get.find()), permanent: true);
     Get.put(CancelQueue(Get.find()), permanent: true);
+    Get.put(ValidateRescheduleEligibility(Get.find()), permanent: true);
+    Get.put(GetAvailableRescheduleDates(Get.find()), permanent: true);
+    Get.put(RescheduleQueue(Get.find()), permanent: true);
 
     // Controller
     Get.put(
