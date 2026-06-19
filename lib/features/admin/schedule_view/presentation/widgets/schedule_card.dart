@@ -196,7 +196,7 @@ class _ScheduleCardState extends State<ScheduleCard>
                   Get.dialog(
                     AlertDialog(
                       title: const Text('Konfirmasi'),
-                      content: const Text('Hapus jadwal ?'),
+                      content: const Text('Nonaktifkan jadwal ini?'),
                       actions: [
                         TextButton(
                           onPressed: () => Get.back(),
@@ -207,7 +207,7 @@ class _ScheduleCardState extends State<ScheduleCard>
                             Get.back();
                             controller.deleteScheduleById(widget.schedule.id);
                           },
-                          child: const Text('Hapus'),
+                          child: const Text('Nonaktifkan'),
                         ),
                       ],
                     ),
@@ -248,7 +248,7 @@ class _ScheduleCardState extends State<ScheduleCard>
                         color: Color(0xFFEF4444),
                       ),
                       SizedBox(width: 8),
-                      Text('Hapus', style: TextStyle(color: Color(0xFFEF4444))),
+                      Text('Nonaktifkan', style: TextStyle(color: Color(0xFFEF4444))),
                     ],
                   ),
                 ),

@@ -61,7 +61,10 @@ class AdminController extends GetxController {
         .collection('doctors')
         .snapshots()
         .listen((snapshot) {
-      loadDashboardData();
+      if (isClosed) return;
+      totalDokter.value = snapshot.docs
+          .where((doc) => (doc.data()['is_active'] as bool?) ?? true)
+          .length;
     });
 
     // Listen to schedules collection untuk auto-update total jadwal
@@ -69,7 +72,10 @@ class AdminController extends GetxController {
         .collection('schedules')
         .snapshots()
         .listen((snapshot) {
-      loadDashboardData();
+      if (isClosed) return;
+      totalJadwal.value = snapshot.docs
+          .where((doc) => (doc.data()['is_active'] as bool?) ?? true)
+          .length;
     });
 
     // Listen to users collection untuk auto-update total pasien
@@ -78,7 +84,8 @@ class AdminController extends GetxController {
         .where('role', isEqualTo: 'pasien')
         .snapshots()
         .listen((snapshot) {
-      loadDashboardData();
+      if (isClosed) return;
+      totalPasien.value = snapshot.docs.length;
     });
 
     // Listen to queues collection untuk auto-update total antrean
@@ -86,7 +93,8 @@ class AdminController extends GetxController {
         .collection('queues')
         .snapshots()
         .listen((snapshot) {
-      loadDashboardData();
+      if (isClosed) return;
+      totalAntrean.value = snapshot.docs.length;
     });
 
     // Listen to activities collection untuk auto-update riwayat aktivitas
@@ -96,7 +104,17 @@ class AdminController extends GetxController {
         .limit(5)
         .snapshots()
         .listen((snapshot) {
-      loadRecentActivities(); // Reload activities saat ada perubahan
+      if (isClosed) return;
+      recentActivities.value = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'title': data['title'] ?? '',
+          'subtitle': data['subtitle'] ?? '',
+          'timestamp': data['timestamp'],
+          'time': _formatActivityTime(data['timestamp'] as Timestamp?),
+          'type': data['type'] ?? 'default',
+        };
+      }).toList();
     });
   }
 
@@ -154,6 +172,10 @@ class AdminController extends GetxController {
 
   // Format timestamp untuk display (dipanggil setiap UI rebuild)
   String formatActivityTime(dynamic timestamp) {
+    return _formatActivityTime(timestamp);
+  }
+
+  String _formatActivityTime(dynamic timestamp) {
     if (timestamp == null) return 'Baru saja';
     
     DateTime time;

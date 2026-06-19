@@ -8,6 +8,10 @@ import 'package:antrean_online/features/auth/domain/usecases/save_credentials.da
 import 'package:antrean_online/features/auth/domain/usecases/get_saved_credentials.dart';
 import 'package:antrean_online/features/auth/domain/usecases/clear_saved_credentials.dart';
 import 'package:antrean_online/features/auth/domain/usecases/has_remembered_credentials.dart';
+import 'package:antrean_online/features/auth/domain/usecases/save_current_role.dart';
+import 'package:antrean_online/features/auth/domain/usecases/get_current_role.dart';
+import 'package:antrean_online/features/auth/domain/usecases/get_current_role_from_server.dart';
+import 'package:antrean_online/features/auth/domain/usecases/clear_current_role.dart';
 import 'package:antrean_online/features/auth/domain/usecases/reset_password.dart';
 import 'package:antrean_online/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -44,6 +48,10 @@ class AuthBinding extends Bindings {
     Get.lazyPut(() => GetSavedCredentials(Get.find<AuthRepositoryImpl>()));
     Get.lazyPut(() => ClearSavedCredentials(Get.find<AuthRepositoryImpl>()));
     Get.lazyPut(() => HasRememberedCredentials(Get.find<AuthRepositoryImpl>()));
+    Get.lazyPut(() => SaveCurrentRole(Get.find<AuthRepositoryImpl>()));
+    Get.lazyPut(() => GetCurrentRole(Get.find<AuthRepositoryImpl>()));
+    Get.lazyPut(() => GetCurrentRoleFromServer(Get.find<AuthRepositoryImpl>()));
+    Get.lazyPut(() => ClearCurrentRole(Get.find<AuthRepositoryImpl>()));
     Get.lazyPut(() => ResetPassword(Get.find<AuthRepositoryImpl>()));
 
     // Controller - Make it permanent so it persists across different bindings
@@ -54,6 +62,10 @@ class AuthBinding extends Bindings {
       getSavedCredentials: Get.find(),
       clearSavedCredentials: Get.find(),
       hasRememberedCredentials: Get.find(),
+      saveCurrentRole: Get.find(),
+      getCurrentRole: Get.find(),
+      getCurrentRoleFromServer: Get.find(),
+      clearCurrentRole: Get.find(),
       resetPassword: Get.find(),
     ), permanent: true);
   }

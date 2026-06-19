@@ -18,6 +18,10 @@ import 'package:antrean_online/features/auth/domain/usecases/save_credentials.da
 import 'package:antrean_online/features/auth/domain/usecases/get_saved_credentials.dart';
 import 'package:antrean_online/features/auth/domain/usecases/clear_saved_credentials.dart';
 import 'package:antrean_online/features/auth/domain/usecases/has_remembered_credentials.dart';
+import 'package:antrean_online/features/auth/domain/usecases/save_current_role.dart';
+import 'package:antrean_online/features/auth/domain/usecases/get_current_role.dart';
+import 'package:antrean_online/features/auth/domain/usecases/get_current_role_from_server.dart';
+import 'package:antrean_online/features/auth/domain/usecases/clear_current_role.dart';
 import 'package:antrean_online/features/auth/domain/usecases/reset_password.dart';
 
 class AdminBinding extends Bindings {
@@ -75,6 +79,18 @@ class AdminBinding extends Bindings {
       if (!Get.isRegistered<HasRememberedCredentials>()) {
         Get.lazyPut(() => HasRememberedCredentials(Get.find<AuthRepositoryImpl>()), fenix: true);
       }
+      if (!Get.isRegistered<SaveCurrentRole>()) {
+        Get.lazyPut(() => SaveCurrentRole(Get.find<AuthRepositoryImpl>()), fenix: true);
+      }
+      if (!Get.isRegistered<GetCurrentRole>()) {
+        Get.lazyPut(() => GetCurrentRole(Get.find<AuthRepositoryImpl>()), fenix: true);
+      }
+      if (!Get.isRegistered<GetCurrentRoleFromServer>()) {
+        Get.lazyPut(() => GetCurrentRoleFromServer(Get.find<AuthRepositoryImpl>()), fenix: true);
+      }
+      if (!Get.isRegistered<ClearCurrentRole>()) {
+        Get.lazyPut(() => ClearCurrentRole(Get.find<AuthRepositoryImpl>()), fenix: true);
+      }
       if (!Get.isRegistered<ResetPassword>()) {
         Get.lazyPut(() => ResetPassword(Get.find<AuthRepositoryImpl>()), fenix: true);
       }
@@ -87,6 +103,10 @@ class AdminBinding extends Bindings {
         getSavedCredentials: Get.find(),
         clearSavedCredentials: Get.find(),
         hasRememberedCredentials: Get.find(),
+        saveCurrentRole: Get.find(),
+        getCurrentRole: Get.find(),
+        getCurrentRoleFromServer: Get.find(),
+        clearCurrentRole: Get.find(),
         resetPassword: Get.find(),
       ), permanent: true);
     }
@@ -117,10 +137,13 @@ class AdminBinding extends Bindings {
 
     // Controller Layer
     if (!Get.isRegistered<AdminController>()) {
-      Get.put(AdminController(
-        getDashboardStats: Get.find(),
-        getRecentActivities: Get.find(),
-      ), permanent: true);
+      Get.put(
+        AdminController(
+          getDashboardStats: Get.find(),
+          getRecentActivities: Get.find(),
+        ),
+        permanent: true,
+      );
     }
   }
 }

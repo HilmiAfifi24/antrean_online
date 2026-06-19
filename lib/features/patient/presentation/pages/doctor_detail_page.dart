@@ -38,7 +38,7 @@ class DoctorDetailPage extends GetView<DoctorDetailController> {
                   ),
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Get.back(),
+                    onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ),
               ),

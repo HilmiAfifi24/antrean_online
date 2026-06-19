@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../domain/usecases/login_user.dart';
 import '../../domain/usecases/register_user.dart';
 import '../../domain/usecases/save_credentials.dart';
 import '../../domain/usecases/get_saved_credentials.dart';
 import '../../domain/usecases/clear_saved_credentials.dart';
 import '../../domain/usecases/has_remembered_credentials.dart';
+import '../../domain/usecases/save_current_role.dart';
+import '../../domain/usecases/get_current_role.dart';
+import '../../domain/usecases/get_current_role_from_server.dart';
+import '../../domain/usecases/clear_current_role.dart';
 import '../../domain/usecases/reset_password.dart';
 import '../../domain/entities/user_entity.dart';
 
@@ -16,6 +21,10 @@ class AuthController extends GetxController {
   final GetSavedCredentials getSavedCredentials;
   final ClearSavedCredentials clearSavedCredentials;
   final HasRememberedCredentials hasRememberedCredentials;
+  final SaveCurrentRole saveCurrentRole;
+  final GetCurrentRole getCurrentRole;
+  final GetCurrentRoleFromServer getCurrentRoleFromServer;
+  final ClearCurrentRole clearCurrentRole;
   final ResetPassword resetPassword;
 
   AuthController({
@@ -25,6 +34,10 @@ class AuthController extends GetxController {
     required this.getSavedCredentials,
     required this.clearSavedCredentials,
     required this.hasRememberedCredentials,
+    required this.saveCurrentRole,
+    required this.getCurrentRole,
+    required this.getCurrentRoleFromServer,
+    required this.clearCurrentRole,
     required this.resetPassword,
   });
 
@@ -41,6 +54,7 @@ class AuthController extends GetxController {
   void onInit() {
     super.onInit();
     _loadSavedCredentials();
+    _restoreActiveSession();
   }
 
   /// Load saved credentials if remember me was checked
@@ -65,6 +79,34 @@ class AuthController extends GetxController {
     }
   }
 
+  Future<void> _restoreActiveSession() async {
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
+        currentUser.value = null;
+        await clearCurrentRole();
+        return;
+      }
+
+      final serverRole = await getCurrentRoleFromServer();
+
+      if (serverRole != null && serverRole.isNotEmpty) {
+        await saveCurrentRole(serverRole);
+        currentUser.value = UserEntity(
+          id: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          role: serverRole,
+        );
+      } else {
+        await registerUser.repository.logout();
+        currentUser.value = null;
+        await clearCurrentRole();
+      }
+    } catch (e) {
+      debugPrint('Error restoring session role: $e');
+    }
+  }
+
   Future<void> login(String email, String password, {String? expectedRole}) async {
     if(!email.endsWith("@pens.ac.id")) {
       Get.snackbar(
@@ -82,7 +124,12 @@ class AuthController extends GetxController {
       isLoading.value = true;
       hasLoginError.value = false;
       final user = await loginUser(email, password);
-      currentUser.value = user;
+      final effectiveRole = user.role;
+      currentUser.value = UserEntity(
+        id: user.id,
+        email: user.email,
+        role: effectiveRole,
+      );
 
       // Handle Remember Me
       if (rememberMe.value) {
@@ -92,11 +139,13 @@ class AuthController extends GetxController {
       }
 
       // Validate role if expectedRole is provided
-      if (expectedRole != null && user.role != expectedRole) {
+      if (expectedRole != null && effectiveRole != expectedRole) {
         await registerUser.repository.logout(); // Logout immediately
+        await clearCurrentRole();
+        currentUser.value = null;
         Get.snackbar(
           "Akses Ditolak",
-          "Anda tidak memiliki akses sebagai ${_getRoleDisplayName(expectedRole)}. Role Anda: ${_getRoleDisplayName(user.role)}",
+          "Anda tidak memiliki akses sebagai ${_getRoleDisplayName(expectedRole)}. Role Anda: ${_getRoleDisplayName(effectiveRole)}",
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.red.shade100,
           colorText: Colors.red.shade900,
@@ -105,6 +154,8 @@ class AuthController extends GetxController {
         );
         return;
       }
+
+      await saveCurrentRole(effectiveRole);
 
       // Show success message
       Get.snackbar(
@@ -118,9 +169,9 @@ class AuthController extends GetxController {
       );
 
       // Navigate based on user role
-      if (user.role == "admin") {
+      if (effectiveRole == "admin") {
         Get.offAllNamed("/admin");
-      } else if (user.role == "dokter") {
+      } else if (effectiveRole == "dokter") {
         Get.offAllNamed("/dokter");
       } else {
         Get.offAllNamed("/pasien");
@@ -187,6 +238,7 @@ class AuthController extends GetxController {
       isLoading.value = true;
       final user = await registerUser(email, password, role, name, phone);
       currentUser.value = user;
+      await saveCurrentRole(user.role);
       
       Get.snackbar(
         "Sukses",
@@ -222,6 +274,7 @@ class AuthController extends GetxController {
   Future<void> logout() async {
     try {
       await registerUser.repository.logout(); 
+      await clearCurrentRole();
       currentUser.value = null;
       
       // Clear form fields

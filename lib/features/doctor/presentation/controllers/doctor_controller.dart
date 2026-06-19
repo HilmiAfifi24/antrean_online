@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import '../../data/repositories/doctor_repository_impl.dart';
 import '../../domain/repositories/doctor_repository.dart';
 import '../../../../core/routes/app_routes.dart';
@@ -119,9 +120,40 @@ class DoctorController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadDoctorData();
-    _loadDoctorSchedule();
-    _loadQueueStats();
+    _validateDoctorSession();
+  }
+
+  Future<void> _validateDoctorSession() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        Get.offAllNamed(AppRoutes.roleSelection);
+        return;
+      }
+
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final data = userDoc.data();
+      final role = data?['role'] as String?;
+      final isActive = data?['is_active'] != false;
+
+      if (!userDoc.exists || role != 'dokter' || !isActive) {
+        await _auth.signOut();
+        Get.offAllNamed(AppRoutes.roleSelection);
+        return;
+      }
+
+      _loadDoctorData();
+      _loadDoctorSchedule();
+      _loadQueueStats();
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Gagal memverifikasi sesi dokter: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      await _auth.signOut();
+      Get.offAllNamed(AppRoutes.roleSelection);
+    }
   }
 
   // Load doctor data from Firestore
@@ -577,14 +609,16 @@ class DoctorController extends GetxController {
         targetDate.month,
         targetDate.day,
       );
+      final absenceId = '${user.uid}_${DateFormat('yyyy-MM-dd').format(startOfDay)}';
 
-      // Save to doctor_absences collection
-      await _firestore.collection('doctor_absences').add({
+      // Save as a deterministic document to avoid duplicate absence records
+      await _firestore.collection('doctor_absences').doc(absenceId).set({
         'doctor_id': user.uid,
         'doctor_name': _doctorName.value,
         'date': Timestamp.fromDate(startOfDay),
         'created_at': FieldValue.serverTimestamp(),
         'status': 'reported', // e.g., 'reported', 'processed_by_admin'
+        'updated_at': FieldValue.serverTimestamp(),
       });
 
       Get.snackbar(

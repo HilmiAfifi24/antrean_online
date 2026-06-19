@@ -1,15 +1,102 @@
 import 'package:antrean_online/features/admin/doctor_view/data/models/doctor_admin_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:antrean_online/firebase_options.dart';
 
 class DoctorAdminRemoteDatasource {
   final FirebaseFirestore firestore;
   final FirebaseAuth auth;
+  static const String _secondaryAppName = 'doctor-admin-auth';
+  static const String _publicCollection = 'doctors_public';
 
   DoctorAdminRemoteDatasource({
     required this.firestore,
     required this.auth,
   });
+
+  Future<FirebaseAuth> _getSecondaryAuth() async {
+    try {
+      final app = Firebase.app(_secondaryAppName);
+      return FirebaseAuth.instanceFor(app: app);
+    } catch (_) {
+      final app = await Firebase.initializeApp(
+        name: _secondaryAppName,
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      return FirebaseAuth.instanceFor(app: app);
+    }
+  }
+
+  Map<String, dynamic> _publicDoctorCreateData(
+    DoctorAdminModel doctor, {
+    required bool isActive,
+    required String userId,
+  }) {
+    return {
+      'user_id': userId,
+      'name': doctor.namaLengkap,
+      'specialization': doctor.spesialisasi,
+      'is_active': isActive,
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    };
+  }
+
+  Map<String, dynamic> _publicDoctorUpdateData(
+    DoctorAdminModel doctor, {
+    required bool isActive,
+  }) {
+    return {
+      'user_id': doctor.userId,
+      'name': doctor.namaLengkap,
+      'specialization': doctor.spesialisasi,
+      'is_active': isActive,
+      'updated_at': FieldValue.serverTimestamp(),
+    };
+  }
+
+  String _publicDoctorDocId(DoctorAdminModel doctor) {
+    return doctor.userId.isNotEmpty ? doctor.userId : doctor.id;
+  }
+
+  Future<void> _syncPublicDoctorMirror(List<DoctorAdminModel> doctors) async {
+    if (doctors.isEmpty) {
+      return;
+    }
+
+    var batch = firestore.batch();
+    var batchOps = 0;
+
+    Future<void> flushBatch() async {
+      if (batchOps == 0) {
+        return;
+      }
+      await batch.commit();
+      batch = firestore.batch();
+      batchOps = 0;
+    }
+
+    for (final doctor in doctors) {
+      final publicDocId = _publicDoctorDocId(doctor);
+      if (publicDocId.isEmpty) {
+        continue;
+      }
+
+      if (batchOps >= 450) {
+        await flushBatch();
+      }
+
+      batch.set(
+        firestore.collection(_publicCollection).doc(publicDocId),
+        _publicDoctorUpdateData(doctor, isActive: doctor.isActive),
+        SetOptions(merge: true),
+      );
+      batchOps++;
+    }
+
+    await flushBatch();
+  }
 
   // Get all doctors
   Future<List<DoctorAdminModel>> getAllDoctors() async {
@@ -18,9 +105,17 @@ class DoctorAdminRemoteDatasource {
         .orderBy('created_at', descending: true)
         .get();
 
-    return snapshot.docs
+    final doctors = snapshot.docs
         .map((doc) => DoctorAdminModel.fromFirestore(doc))
         .toList();
+
+    try {
+      await _syncPublicDoctorMirror(doctors);
+    } catch (_) {
+      // Jangan gagalkan halaman admin hanya karena mirror publik gagal disinkronkan.
+    }
+
+    return doctors;
   }
 
   // Get doctor by ID
@@ -44,25 +139,31 @@ class DoctorAdminRemoteDatasource {
         final deletedAccount = deletedAccountQuery.docs.first;
         final deletedData = deletedAccount.data();
         final oldUserId = deletedData['user_id'] as String;
-        
-        // Re-create user document in users collection dengan user_id yang sama
-        await firestore.collection('users').doc(oldUserId).set({
-          'email': doctor.email,
-          'nama_lengkap': doctor.namaLengkap,
-          'role': 'dokter',
-          'is_active': true,
-          'created_at': FieldValue.serverTimestamp(),
-          'reactivated_at': FieldValue.serverTimestamp(),
-        });
 
+        final doctorRef = firestore.collection('doctors').doc();
         final doctorData = doctor.toFirestore();
         doctorData['user_id'] = oldUserId;
 
-        final docRef = await firestore.collection('doctors').add(doctorData);
-        
-        // Hapus dari deleted_accounts
-        await deletedAccount.reference.delete();
-        
+        final batch = firestore.batch();
+        batch.set(
+          firestore.collection('users').doc(oldUserId),
+          {
+            'email': doctor.email,
+            'nama_lengkap': doctor.namaLengkap,
+            'role': 'dokter',
+            'is_active': true,
+            'created_at': FieldValue.serverTimestamp(),
+            'reactivated_at': FieldValue.serverTimestamp(),
+          },
+        );
+        batch.set(doctorRef, doctorData);
+        batch.set(
+          firestore.collection(_publicCollection).doc(oldUserId),
+          _publicDoctorCreateData(doctor, isActive: true, userId: oldUserId),
+        );
+        batch.delete(deletedAccount.reference);
+        await batch.commit();
+
         // Kirim email reset password
         try {
           await auth.sendPasswordResetEmail(email: doctor.email);
@@ -76,35 +177,64 @@ class DoctorAdminRemoteDatasource {
           type: 'doctor_reactivated',
         );
 
-        return docRef.id;
+        return doctorRef.id;
       }
 
       // Email belum pernah digunakan, buat akun baru
-      final userCredential = await auth.createUserWithEmailAndPassword(
-        email: doctor.email,
-        password: password,
-      );
+      final secondaryAuth = await _getSecondaryAuth();
+      UserCredential? userCredential;
+      try {
+        userCredential = await secondaryAuth.createUserWithEmailAndPassword(
+          email: doctor.email,
+          password: password,
+        );
 
-      await firestore.collection('users').doc(userCredential.user!.uid).set({
-        'email': doctor.email,
-        'nama_lengkap': doctor.namaLengkap,
-        'role': 'dokter',
-        'is_active': true,
-        'created_at': FieldValue.serverTimestamp(),
-      });
+        final doctorRef = firestore.collection('doctors').doc();
+        final doctorData = doctor.toFirestore();
+        doctorData['user_id'] = userCredential.user!.uid;
 
-      final doctorData = doctor.toFirestore();
-      doctorData['user_id'] = userCredential.user!.uid;
+        final batch = firestore.batch();
+        batch.set(firestore.collection('users').doc(userCredential.user!.uid), {
+          'email': doctor.email,
+          'nama_lengkap': doctor.namaLengkap,
+          'role': 'dokter',
+          'is_active': true,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+        batch.set(doctorRef, doctorData);
+        batch.set(
+          firestore.collection(_publicCollection).doc(userCredential.user!.uid),
+          _publicDoctorCreateData(
+            doctor,
+            isActive: true,
+            userId: userCredential.user!.uid,
+          ),
+        );
+        await batch.commit();
 
-      final docRef = await firestore.collection('doctors').add(doctorData);
+        await _logActivity(
+          title: 'Dokter Baru Ditambahkan',
+          subtitle: 'Dr. ${doctor.namaLengkap} telah ditambahkan ke sistem',
+          type: 'doctor_added',
+        );
 
-      await _logActivity(
-        title: 'Dokter Baru Ditambahkan',
-        subtitle: 'Dr. ${doctor.namaLengkap} telah ditambahkan ke sistem',
-        type: 'doctor_added',
-      );
-
-      return docRef.id;
+        return doctorRef.id;
+      } catch (e) {
+        if (userCredential?.user != null) {
+          try {
+            await userCredential!.user!.delete();
+          } catch (_) {
+            // Ignore rollback errors; the main failure will still be reported.
+          }
+        }
+        rethrow;
+      } finally {
+        try {
+          await secondaryAuth.signOut();
+        } catch (_) {
+          // Ignore sign-out errors.
+        }
+      }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
         // Email masih aktif di Firebase Auth
@@ -141,19 +271,25 @@ class DoctorAdminRemoteDatasource {
 
   // Update doctor
   Future<void> updateDoctor(String id, DoctorAdminModel doctor) async {
-    await firestore
-        .collection('doctors')
-        .doc(id)
-        .update(doctor.toFirestoreForUpdate());
-
+    final doctorRef = firestore.collection('doctors').doc(id);
+    final batch = firestore.batch();
+    batch.update(doctorRef, doctor.toFirestoreForUpdate());
     if (doctor.userId.isNotEmpty) {
-      await firestore.collection('users').doc(doctor.userId).update({
+      batch.update(firestore.collection('users').doc(doctor.userId), {
         'nama_lengkap': doctor.namaLengkap,
         'email': doctor.email,
         'is_active': doctor.isActive,
         'updated_at': FieldValue.serverTimestamp(),
       });
     }
+
+    final publicDocId = _publicDoctorDocId(doctor);
+    batch.set(
+      firestore.collection(_publicCollection).doc(publicDocId),
+      _publicDoctorUpdateData(doctor, isActive: doctor.isActive),
+      SetOptions(merge: true),
+    );
+    await batch.commit();
 
     await _logActivity(
       title: 'Data Dokter Diperbarui',
@@ -167,17 +303,25 @@ class DoctorAdminRemoteDatasource {
     final doctor = await getDoctorById(id);
     if (doctor == null) throw Exception('Doctor not found');
 
-    await firestore.collection('doctors').doc(id).update({
+    final batch = firestore.batch();
+    batch.update(firestore.collection('doctors').doc(id), {
       'is_active': false,
       'updated_at': FieldValue.serverTimestamp(),
     });
 
     if (doctor.userId.isNotEmpty) {
-      await firestore.collection('users').doc(doctor.userId).update({
+      batch.update(firestore.collection('users').doc(doctor.userId), {
         'is_active': false,
         'updated_at': FieldValue.serverTimestamp(),
       });
     }
+
+    final publicDocId = doctor.userId.isNotEmpty ? doctor.userId : id;
+    batch.set(firestore.collection(_publicCollection).doc(publicDocId), {
+      'is_active': false,
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await batch.commit();
 
     await _logActivity(
       title: 'Dokter Dinonaktifkan',
@@ -194,6 +338,29 @@ class DoctorAdminRemoteDatasource {
     try {
       int totalSchedules = 0;
       int totalQueues = 0;
+      final deletedQueueIds = <String>{};
+      var batch = firestore.batch();
+      var batchOps = 0;
+
+      Future<void> ensureBatchCapacity([int additionalOps = 1]) async {
+        if (batchOps + additionalOps > 450) {
+          await batch.commit();
+          batch = firestore.batch();
+          batchOps = 0;
+        }
+      }
+
+      Future<void> queueDelete(DocumentReference ref) async {
+        await ensureBatchCapacity();
+        batch.delete(ref);
+        batchOps++;
+      }
+
+      Future<void> queueSet(DocumentReference ref, Map<String, dynamic> data) async {
+        await ensureBatchCapacity();
+        batch.set(ref, data);
+        batchOps++;
+      }
 
       // 1. Hapus semua jadwal yang terkait dengan dokter ini (menggunakan userId, bukan document id)
       if (doctor.userId.isNotEmpty) {
@@ -211,14 +378,15 @@ class DoctorAdminRemoteDatasource {
               .where('schedule_id', isEqualTo: scheduleDoc.id)
               .get();
           
-          totalQueues += queuesSnapshot.docs.length;
-          
           for (final queueDoc in queuesSnapshot.docs) {
-            await queueDoc.reference.delete();
+            if (deletedQueueIds.add(queueDoc.id)) {
+              totalQueues++;
+              await queueDelete(queueDoc.reference);
+            }
           }
           
           // Hapus jadwal
-          await scheduleDoc.reference.delete();
+          await queueDelete(scheduleDoc.reference);
         }
 
         // 2. Hapus juga antrean yang langsung terkait dengan doctor userId
@@ -227,20 +395,14 @@ class DoctorAdminRemoteDatasource {
             .where('doctor_id', isEqualTo: doctor.userId)
             .get();
         
-        totalQueues += doctorQueuesSnapshot.docs.length;
-        
         for (final queueDoc in doctorQueuesSnapshot.docs) {
-          await queueDoc.reference.delete();
+          if (deletedQueueIds.add(queueDoc.id)) {
+            totalQueues++;
+            await queueDelete(queueDoc.reference);
+          }
         }
-      }
 
-      // 3. Hapus dokumen dokter dari collection doctors
-      await firestore.collection('doctors').doc(id).delete();
-
-      // 4. Tandai email di deleted_accounts SEBELUM menghapus user
-      if (doctor.userId.isNotEmpty) {
-        // Simpan info untuk reaktivasi nanti
-        await firestore.collection('deleted_accounts').doc(doctor.userId).set({
+        await queueSet(firestore.collection('deleted_accounts').doc(doctor.userId), {
           'email': doctor.email,
           'user_id': doctor.userId,
           'deleted_at': FieldValue.serverTimestamp(),
@@ -248,9 +410,16 @@ class DoctorAdminRemoteDatasource {
           'doctor_name': doctor.namaLengkap,
           'can_reuse': true,
         });
-        
-        // Hapus dokumen user dari collection users
-        await firestore.collection('users').doc(doctor.userId).delete();
+
+        await queueDelete(firestore.collection('users').doc(doctor.userId));
+      }
+
+      // 3. Hapus dokumen dokter dari collection doctors
+      await queueDelete(firestore.collection('doctors').doc(id));
+      await queueDelete(firestore.collection(_publicCollection).doc(doctor.userId.isNotEmpty ? doctor.userId : id));
+
+      if (batchOps > 0) {
+        await batch.commit();
       }
 
       await _logActivity(

@@ -18,7 +18,7 @@ class PatientListViewPage extends StatelessWidget {
         backgroundColor: const Color(0xFF3B82F6),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,6 +56,28 @@ class PatientListViewPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (controller.errorMessage != null &&
+                    controller.patients.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Text(
+                        controller.errorMessage!,
+                        style: const TextStyle(
+                          color: Color(0xFFB91C1C),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+
                 // Statistics Cards
                 Container(
                   padding: const EdgeInsets.all(20),

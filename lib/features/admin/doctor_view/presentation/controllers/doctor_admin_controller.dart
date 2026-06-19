@@ -67,14 +67,9 @@ class DoctorAdminController extends GetxController {
     loadDoctors();
     loadSpecializations();
 
-    // Listen to search changes
+  // Listen to search changes
     searchController.addListener(() {
-      if (searchController.text.isEmpty) {
-        _filteredDoctors.value = _doctors;
-        update();
-      } else {
-        filterDoctors(searchController.text);
-      }
+      _applyFilters();
     });
 
     // Listen to form changes
@@ -104,7 +99,7 @@ class DoctorAdminController extends GetxController {
       update();
       final result = await getAllDoctors();
       _doctors.value = result;
-      _filteredDoctors.value = result;
+      _applyFilters();
       update();
     } catch (e) {
       _showError('Gagal memuat data dokter: ${e.toString()}');
@@ -151,43 +146,44 @@ class DoctorAdminController extends GetxController {
   void clearSearch() {
     searchController.clear();
     _selectedSpecialization.value = '';
-    _filteredDoctors.value = _doctors;
-    update();
+    _applyFilters();
   }
 
   // Simple search for UI
   void filterDoctors(String query) {
-    if (query.isEmpty) {
-      _filteredDoctors.value = _doctors;
-    } else {
-      _filteredDoctors.value = _doctors
-          .where(
-            (doctor) =>
-                doctor.namaLengkap.toLowerCase().contains(
-                  query.toLowerCase(),
-                ) ||
-                doctor.spesialisasi.toLowerCase().contains(
-                  query.toLowerCase(),
-                ) ||
-                doctor.nomorIdentifikasi.toLowerCase().contains(
-                  query.toLowerCase(),
-                ),
-          )
-          .toList();
+    if (searchController.text != query) {
+      searchController.text = query;
     }
-    update();
+    _applyFilters();
   }
 
   // Filter by specialization
   void filterBySpecialization(String specialization) {
     _selectedSpecialization.value = specialization;
-    if (specialization.isEmpty || specialization == 'Semua') {
-      _filteredDoctors.value = _doctors;
-    } else {
-      _filteredDoctors.value = _doctors
-          .where((doctor) => doctor.spesialisasi == specialization)
-          .toList();
+    _applyFilters();
+  }
+
+  void _applyFilters() {
+    Iterable<DoctorAdminEntity> items = _doctors;
+    final query = searchController.text.trim().toLowerCase();
+
+    if (query.isNotEmpty) {
+      items = items.where(
+        (doctor) =>
+            doctor.namaLengkap.toLowerCase().contains(query) ||
+            doctor.spesialisasi.toLowerCase().contains(query) ||
+            doctor.nomorIdentifikasi.toLowerCase().contains(query),
+      );
     }
+
+    if (_selectedSpecialization.value.isNotEmpty &&
+        _selectedSpecialization.value != 'Semua') {
+      items = items.where(
+        (doctor) => doctor.spesialisasi == _selectedSpecialization.value,
+      );
+    }
+
+    _filteredDoctors.value = items.toList();
     update();
   }
 
@@ -335,6 +331,7 @@ class DoctorAdminController extends GetxController {
     int scheduleCount = 0;
     int queueCount = 0;
     String? doctorUserId;
+    final queueIds = <String>{};
 
     try {
       final firestore = Get.find<FirebaseFirestore>();
@@ -359,7 +356,11 @@ class DoctorAdminController extends GetxController {
               .collection('queues')
               .where('schedule_id', isEqualTo: scheduleDoc.id)
               .get();
-          queueCount += queuesSnapshot.docs.length;
+          for (final queueDoc in queuesSnapshot.docs) {
+            if (queueIds.add(queueDoc.id)) {
+              queueCount++;
+            }
+          }
         }
 
         // Hitung antrean langsung terkait dokter userId
@@ -367,7 +368,11 @@ class DoctorAdminController extends GetxController {
             .collection('queues')
             .where('doctor_id', isEqualTo: doctorUserId)
             .get();
-        queueCount += doctorQueuesSnapshot.docs.length;
+        for (final queueDoc in doctorQueuesSnapshot.docs) {
+          if (queueIds.add(queueDoc.id)) {
+            queueCount++;
+          }
+        }
       }
     } catch (e) {
       // Lanjutkan dengan nilai default jika gagal menghitung

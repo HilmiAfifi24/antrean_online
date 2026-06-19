@@ -20,7 +20,7 @@ class AdminScheduleChangeRequestPage extends StatelessWidget {
       backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
         children: [
-          _buildHeader(controller),
+          _buildHeader(context, controller),
           _buildFilterBar(controller),
           Expanded(child: _buildList(controller)),
         ],
@@ -28,7 +28,10 @@ class AdminScheduleChangeRequestPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(AdminScheduleChangeController controller) {
+  Widget _buildHeader(
+    BuildContext context,
+    AdminScheduleChangeController controller,
+  ) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -48,7 +51,7 @@ class AdminScheduleChangeRequestPage extends StatelessWidget {
           child: Row(
             children: [
               IconButton(
-                onPressed: Get.back,
+                onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
                     color: Colors.white, size: 20),
               ),

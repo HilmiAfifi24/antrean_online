@@ -81,7 +81,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
           backgroundColor: const Color(0xFF1976D2),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
           title: const Text('Daftar Antrean'),
         ),
@@ -131,7 +131,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
                     ),
                     const SizedBox(width: 12),
                     OutlinedButton(
-                      onPressed: () => Get.back(),
+                      onPressed: () => Navigator.of(context).maybePop(),
                       child: const Text('Kembali'),
                     ),
                   ],
@@ -384,7 +384,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             style: IconButton.styleFrom(
               backgroundColor: Colors.white.withValues(alpha: 0.2),

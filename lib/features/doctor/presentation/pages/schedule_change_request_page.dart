@@ -12,14 +12,14 @@ class ScheduleChangeRequestPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ScheduleChangeController());
+    final controller = Get.find<ScheduleChangeController>();
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         backgroundColor: const Color(0xFFF1F5F9),
         body: Column(
           children: [
-            _buildHeader(controller),
+            _buildHeader(context, controller),
             const TabBar(
               indicatorColor: Colors.white,
               indicatorWeight: 3,
@@ -45,7 +45,10 @@ class ScheduleChangeRequestPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(ScheduleChangeController controller) {
+  Widget _buildHeader(
+    BuildContext context,
+    ScheduleChangeController controller,
+  ) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -61,7 +64,7 @@ class ScheduleChangeRequestPage extends StatelessWidget {
           child: Row(
             children: [
               IconButton(
-                onPressed: Get.back,
+                onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
                     color: Colors.white, size: 20),
               ),

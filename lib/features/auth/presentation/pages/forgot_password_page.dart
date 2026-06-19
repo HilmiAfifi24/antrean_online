@@ -25,7 +25,7 @@ class ForgotPasswordPage extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF3B82F6)),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
       body: SafeArea(
@@ -129,7 +129,7 @@ class ForgotPasswordPage extends StatelessWidget {
                             isOutlined: true,
                             icon: Icons.arrow_back_rounded,
                             isSmallScreen: isSmallScreen,
-                            onPressed: () => Get.back(),
+                            onPressed: () => Navigator.of(context).maybePop(),
                           ),
                         ],
                       ),

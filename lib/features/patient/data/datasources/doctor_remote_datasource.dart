@@ -10,7 +10,7 @@ class DoctorRemoteDataSource {
   Future<List<DoctorEntity>> getAllDoctors() async {
     try {
       final snapshot = await firestore
-          .collection('doctors')
+          .collection('doctors_public')
           .where('is_active', isEqualTo: true)
           .get();
 
@@ -18,9 +18,9 @@ class DoctorRemoteDataSource {
         final data = doc.data();
         return DoctorEntity(
           id: doc.id,
-          name: data['name'] ?? '',
-          specialization: data['specialization'] ?? '',
-          phone: data['phone'] ?? '',
+          name: data['name'] ?? data['nama_lengkap'] ?? '',
+          specialization: data['specialization'] ?? data['spesialisasi'] ?? '',
+          phone: data['phone'] ?? data['nomor_telepon'] ?? '',
           email: data['email'] ?? '',
           isActive: data['is_active'] ?? false,
           experience: data['experience'] ?? '',
@@ -37,7 +37,7 @@ class DoctorRemoteDataSource {
   Future<List<DoctorEntity>> searchDoctors(String query) async {
     try {
       final snapshot = await firestore
-          .collection('doctors')
+          .collection('doctors_public')
           .where('is_active', isEqualTo: true)
           .get();
 
@@ -45,9 +45,9 @@ class DoctorRemoteDataSource {
         final data = doc.data();
         return DoctorEntity(
           id: doc.id,
-          name: data['name'] ?? '',
-          specialization: data['specialization'] ?? '',
-          phone: data['phone'] ?? '',
+          name: data['name'] ?? data['nama_lengkap'] ?? '',
+          specialization: data['specialization'] ?? data['spesialisasi'] ?? '',
+          phone: data['phone'] ?? data['nomor_telepon'] ?? '',
           email: data['email'] ?? '',
           isActive: data['is_active'] ?? false,
           experience: data['experience'] ?? '',

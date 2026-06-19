@@ -10,7 +10,7 @@ class DoctorHistoryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(DoctorHistoryController());
+    final controller = Get.find<DoctorHistoryController>();
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
 
@@ -37,7 +37,7 @@ class DoctorHistoryPage extends StatelessWidget {
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: () => Get.back(),
+                        onPressed: () => Navigator.of(context).maybePop(),
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
                       ),
                       const SizedBox(width: 8),

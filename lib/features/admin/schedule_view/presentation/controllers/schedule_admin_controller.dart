@@ -8,6 +8,7 @@ import 'package:antrean_online/features/admin/schedule_view/domain/usecases/acti
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/search_schedules.dart';
 import 'package:antrean_online/features/admin/schedule_view/domain/usecases/get_schedules_by_doctor.dart';
 import 'package:antrean_online/features/admin/schedule_view/presentation/widgets/add_edit_schedule_dialog.dart';
+import 'package:antrean_online/features/admin/schedule_view/data/models/schedule_admin_model.dart';
 import 'package:antrean_online/features/admin/doctor_view/domain/entities/doctor_admin_entity.dart';
 import 'package:antrean_online/features/admin/doctor_view/domain/usecases/get_all_doctors.dart';
 import 'package:flutter/material.dart';
@@ -97,12 +98,7 @@ class ScheduleController extends GetxController {
     
     // Listen to search changes
     searchController.addListener(() {
-      if (searchController.text.isEmpty) {
-        _filteredSchedules.value = _schedules;
-        update();
-      } else {
-        filterSchedules(searchController.text);
-      }
+      _applyFilters();
     });
 
     // Listen to form changes
@@ -121,15 +117,37 @@ class ScheduleController extends GetxController {
         .where('is_active', isEqualTo: true)
         .snapshots()
         .listen((snapshot) {
-      loadDoctors(); // Reload doctors when collection changes
+      if (isClosed) return;
+      _doctors.value = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return DoctorAdminEntity(
+          id: doc.id,
+          userId: data['user_id'] ?? '',
+          namaLengkap: data['nama_lengkap'] ?? '',
+          nomorIdentifikasi: data['nomor_identifikasi'] ?? '',
+          spesialisasi: data['spesialisasi'] ?? '',
+          nomorTelepon: data['nomor_telepon'] ?? '',
+          email: data['email'] ?? '',
+          isActive: data['is_active'] ?? true,
+          createdAt: (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          updatedAt: (data['updated_at'] as Timestamp?)?.toDate(),
+        );
+      }).toList();
+      update();
     });
 
     // Listen to schedules collection untuk auto-update list jadwal
-    _schedulesSubscription = FirebaseFirestore.instance
-        .collection('schedules')
-        .snapshots()
-        .listen((snapshot) {
-      loadSchedules(); // Reload schedules when collection changes
+    Query schedulesQuery = FirebaseFirestore.instance.collection('schedules');
+    if (!_includeInactive.value) {
+      schedulesQuery = schedulesQuery.where('is_active', isEqualTo: true);
+    }
+
+    _schedulesSubscription = schedulesQuery.snapshots().listen((snapshot) {
+      if (isClosed) return;
+      _schedules.value = snapshot.docs
+          .map((doc) => ScheduleAdminModel.fromFirestore(doc))
+          .toList();
+      _applyFilters();
     });
   }
 
@@ -156,7 +174,7 @@ class ScheduleController extends GetxController {
       // Don't expand here - let the UI handle display per day
       // But datasource already calculates currentPatients correctly
       _schedules.value = result;
-      _filteredSchedules.value = result;
+      _applyFilters();
       update();
     } catch (e) {
       _showError('Gagal memuat data jadwal: ${e.toString()}');
@@ -220,43 +238,49 @@ class ScheduleController extends GetxController {
 
   // Simple search for UI
   void filterSchedules(String query) {
-    if (query.isEmpty) {
-      _filteredSchedules.value = _schedules;
-    } else {
-      _filteredSchedules.value = _schedules
-          .where((schedule) =>
-              schedule.doctorName.toLowerCase().contains(query.toLowerCase()) ||
-              schedule.doctorSpecialization.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+    if (searchController.text != query) {
+      searchController.text = query;
     }
-    update();
+    _applyFilters();
   }
 
   // Clear search
   void clearSearch() {
     searchController.clear();
     _selectedDoctorId.value = '';
-    _filteredSchedules.value = _schedules;
-    update();
+    _applyFilters();
   }
 
   // Filter by doctor
   void filterByDoctor(String doctorId) {
     _selectedDoctorId.value = doctorId;
-    if (doctorId.isEmpty || doctorId == 'Semua') {
-      _filteredSchedules.value = _schedules;
-    } else {
-      _filteredSchedules.value = _schedules
-          .where((schedule) => schedule.doctorId == doctorId)
-          .toList();
-    }
-    update();
+    _applyFilters();
   }
 
   // Toggle include inactive
   void toggleIncludeInactive() {
     _includeInactive.value = !_includeInactive.value;
-    loadSchedules();
+    _setupRealtimeListeners();
+  }
+
+  void _applyFilters() {
+    Iterable<ScheduleAdminEntity> items = _schedules;
+
+    final query = searchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      items = items.where(
+        (schedule) =>
+            schedule.doctorName.toLowerCase().contains(query) ||
+            schedule.doctorSpecialization.toLowerCase().contains(query),
+      );
+    }
+
+    if (_selectedDoctorId.value.isNotEmpty && _selectedDoctorId.value != 'Semua') {
+      items = items.where((schedule) => schedule.doctorId == _selectedDoctorId.value);
+    }
+
+    _filteredSchedules.value = items.toList();
+    update();
   }
 
   // Set selected date
@@ -370,29 +394,13 @@ class ScheduleController extends GetxController {
   // Delete schedule with confirmation
   Future<void> deleteScheduleById(String id) async {
     try {
-      // Hitung jumlah antrean yang terkait dengan jadwal ini
-      int queueCount = 0;
-      String? doctorName;
-      String? scheduleInfo;
-      
-      final firestore = Get.find<FirebaseFirestore>();
-      final scheduleDoc = await firestore.collection('schedules').doc(id).get();
-      
-      if (scheduleDoc.exists) {
-        final scheduleData = scheduleDoc.data();
-        doctorName = scheduleData?['doctor_name'] as String?;
-        final startTime = scheduleData?['start_time'] as String?;
-        final endTime = scheduleData?['end_time'] as String?;
-        final daysOfWeek = scheduleData?['days_of_week'] as List?;
-        scheduleInfo = '${daysOfWeek?.join(', ')} ($startTime - $endTime)';
-        
-        // Hitung antrean
-        final queuesSnapshot = await firestore
-            .collection('queues')
-            .where('schedule_id', isEqualTo: id)
-            .get();
-        queueCount = queuesSnapshot.docs.length;
-      }
+      final scheduleData = _schedules.firstWhereOrNull((schedule) => schedule.id == id) ??
+          await getScheduleById(id);
+      final queueCount = scheduleData?.currentPatients ?? 0;
+      final doctorName = scheduleData?.doctorName;
+      final scheduleInfo = scheduleData == null
+          ? null
+          : '${scheduleData.daysOfWeek.join(', ')} (${scheduleData.startTime.hour.toString().padLeft(2, '0')}:${scheduleData.startTime.minute.toString().padLeft(2, '0')} - ${scheduleData.endTime.hour.toString().padLeft(2, '0')}:${scheduleData.endTime.minute.toString().padLeft(2, '0')})';
 
       // Tampilkan dialog konfirmasi
       final confirmed = await Get.dialog<bool>(
@@ -417,7 +425,7 @@ class ScheduleController extends GetxController {
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
-                  'Hapus Jadwal?',
+                  'Nonaktifkan Jadwal?',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -431,10 +439,18 @@ class ScheduleController extends GetxController {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Anda akan menghapus jadwal:',
+                'Anda akan menonaktifkan jadwal:',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Jadwal ini akan disembunyikan dari daftar aktif.',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 13,
                 ),
               ),
               const SizedBox(height: 8),
@@ -549,7 +565,7 @@ class ScheduleController extends GetxController {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text('Hapus Permanen', style: TextStyle(color: Colors.white)),
+              child: const Text('Nonaktifkan', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -560,25 +576,12 @@ class ScheduleController extends GetxController {
       _isLoading.value = true;
       update();
 
-      // Hapus semua antrean terkait jadwal ini
-      if (queueCount > 0) {
-        final queuesSnapshot = await firestore
-            .collection('queues')
-            .where('schedule_id', isEqualTo: id)
-            .get();
-        
-        for (final queueDoc in queuesSnapshot.docs) {
-          await queueDoc.reference.delete();
-        }
-      }
-
-      // Hapus jadwal
-      await firestore.collection('schedules').doc(id).delete();
+      await deleteSchedule(id);
       await loadSchedules();
 
-      _showSuccess('Jadwal beserta $queueCount antrean berhasil dihapus');
+      _showSuccess('Jadwal berhasil dinonaktifkan');
     } catch (e) {
-      _showError('Gagal menghapus jadwal: ${e.toString()}');
+      _showError('Gagal menonaktifkan jadwal: ${e.toString()}');
     } finally {
       _isLoading.value = false;
       update();

@@ -5,10 +5,14 @@ abstract class AuthRepository {
   Future<UserEntity> register(String email, String password, String role, String name, String phone);
   Future<void> logout();
   Future<void> resetPassword(String email);
+  Future<String?> getCurrentRoleFromServer();
   
   // Remember Me functionality
   Future<void> saveCredentials(String email, String password);
   Future<Map<String, String>?> getSavedCredentials();
   Future<void> clearCredentials();
   Future<bool> hasRememberedCredentials();
+  Future<void> saveCurrentRole(String role);
+  Future<String?> getCurrentRole();
+  Future<void> clearCurrentRole();
 }

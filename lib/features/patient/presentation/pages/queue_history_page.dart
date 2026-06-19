@@ -45,7 +45,7 @@ class QueueHistoryPage extends GetView<QueueHistoryController> {
                         return _buildErrorView();
                       }
                       if (controller.history.isEmpty) {
-                        return _buildEmptyView();
+                        return _buildEmptyView(context);
                       }
                       return _buildHistoryList();
                     }),
@@ -70,7 +70,7 @@ class QueueHistoryPage extends GetView<QueueHistoryController> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(
               Icons.arrow_back_ios_new_rounded,
               color: Colors.white,
@@ -205,7 +205,7 @@ class QueueHistoryPage extends GetView<QueueHistoryController> {
     );
   }
 
-  Widget _buildEmptyView() {
+  Widget _buildEmptyView(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -255,7 +255,7 @@ class QueueHistoryPage extends GetView<QueueHistoryController> {
             ),
             const SizedBox(height: 32),
             OutlinedButton.icon(
-              onPressed: () => Get.back(),
+              onPressed: () => Navigator.of(context).maybePop(),
               icon: const Icon(Icons.add_circle_outline_rounded),
               label: const Text('Daftar Antrean'),
               style: OutlinedButton.styleFrom(

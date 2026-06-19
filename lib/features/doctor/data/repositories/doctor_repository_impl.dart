@@ -7,6 +7,53 @@ class DoctorRepositoryImpl implements DoctorRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
+  Future<DoctorEntity> getDoctorProfile(String doctorId) async {
+    final query = await _firestore
+        .collection('doctors')
+        .where('user_id', isEqualTo: doctorId)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) {
+      throw Exception('Doctor profile not found');
+    }
+
+    final data = query.docs.first.data();
+    return DoctorEntity(
+      id: query.docs.first.id,
+      name: data['nama_lengkap'] ?? '',
+      specialization: data['spesialisasi'] ?? '',
+      email: data['email'] ?? '',
+    );
+  }
+
+  @override
+  Stream<List<QueueEntity>> getTodayQueues(String doctorId) {
+    final today = DateTime.now();
+    final startOfDay = DateTime(today.year, today.month, today.day);
+
+    return _firestore
+        .collection('queues')
+        .where('doctor_id', isEqualTo: doctorId)
+        .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
+        .where('status', whereIn: ['menunggu', 'waiting', 'dipanggil', 'ongoing', 'rescheduled'])
+        .orderBy('queue_number')
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            return QueueEntity(
+              id: doc.id,
+              patientName: data['patient_name'] ?? '',
+              queueNumber: data['queue_number'] ?? 0,
+              status: data['status'] ?? '',
+              complaint: data['complaint'] ?? '',
+            );
+          }).toList();
+        });
+  }
+
+  @override
   Future<void> skipCurrentPatient(String doctorId) async {
     final today = DateTime.now();
     final startOfDay = DateTime(today.year, today.month, today.day);
@@ -85,17 +132,27 @@ class DoctorRepositoryImpl implements DoctorRepository {
   }
 
   @override
-  Future<void> callNextPatient(String doctorId) {
-    throw UnimplementedError();
-  }
+  Future<void> callNextPatient(String doctorId) async {
+    final today = DateTime.now();
+    final startOfDay = DateTime(today.year, today.month, today.day);
 
-  @override
-  Future<DoctorEntity> getDoctorProfile(String doctorId) {
-    throw UnimplementedError();
-  }
+    final waitingQuery = await _firestore
+        .collection('queues')
+        .where('doctor_id', isEqualTo: doctorId)
+        .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
+        .where('status', whereIn: ['menunggu', 'waiting', 'rescheduled'])
+        .orderBy('queue_number')
+        .limit(1)
+        .get();
 
-  @override
-  Stream<List<QueueEntity>> getTodayQueues(String doctorId) {
-    throw UnimplementedError();
+    if (waitingQuery.docs.isEmpty) {
+      throw Exception('no_waiting_patient');
+    }
+
+    final queueDoc = waitingQuery.docs.first;
+    await _firestore.collection('queues').doc(queueDoc.id).update({
+      'status': 'dipanggil',
+      'called_at': FieldValue.serverTimestamp(),
+    });
   }
 }

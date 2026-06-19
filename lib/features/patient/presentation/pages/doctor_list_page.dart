@@ -37,7 +37,7 @@ class DoctorListPage extends GetView<DoctorListController> {
           ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text(
           'Daftar Dokter',
@@ -433,4 +433,3 @@ class DoctorListPage extends GetView<DoctorListController> {
     );
   }
 }
-

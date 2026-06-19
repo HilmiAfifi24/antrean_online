@@ -15,7 +15,10 @@ class LoginPage extends StatelessWidget {
     final emailController = controller.emailController;
     final passwordController = controller.passwordController;
     final rememberMe = controller.rememberMe;
-    final role = Get.parameters['role'] ?? 'patient';
+    final arguments = Get.arguments;
+    final role = Get.parameters['role'] ??
+        (arguments is Map ? arguments['role']?.toString() : null) ??
+        'patient';
     
     // Mendapatkan ukuran layar
     final size = MediaQuery.of(context).size;

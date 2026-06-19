@@ -27,17 +27,24 @@ class ScheduleChangeRequestDatasource {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Pengguna tidak terautentikasi');
 
-    // Ambil data dokter
-    final doctorQuery = await _firestore
-        .collection('doctors')
-        .where('user_id', isEqualTo: user.uid)
-        .limit(1)
+    final oldScheduleDoc = await _firestore
+        .collection('schedules')
+        .doc(oldScheduleId)
         .get();
+    if (!oldScheduleDoc.exists) {
+      throw Exception('Jadwal yang dipilih tidak ditemukan');
+    }
+
+    final oldScheduleData = oldScheduleDoc.data()!;
+    if (oldScheduleData['doctor_id'] != user.uid) {
+      throw Exception('Anda hanya dapat mengajukan perubahan untuk jadwal milik sendiri');
+    }
 
     String doctorName = '';
     String doctorPhone = '';
-    if (doctorQuery.docs.isNotEmpty) {
-      final data = doctorQuery.docs.first.data();
+    final doctorDoc = await _firestore.collection('doctors').where('user_id', isEqualTo: user.uid).limit(1).get();
+    if (doctorDoc.docs.isNotEmpty) {
+      final data = doctorDoc.docs.first.data();
       doctorName = data['nama_lengkap'] ?? '';
       doctorPhone = data['nomor_telepon'] ?? '';
     }
@@ -221,6 +228,15 @@ class ScheduleChangeRequestDatasource {
     if (!requestDoc.exists) throw Exception('Request tidak ditemukan');
 
     final request = ScheduleChangeRequestEntity.fromFirestore(requestDoc);
+    final oldScheduleDoc = await _firestore
+        .collection('schedules')
+        .doc(request.oldScheduleId)
+        .get();
+    if (!oldScheduleDoc.exists) throw Exception('Jadwal lama tidak ditemukan');
+    final oldScheduleData = oldScheduleDoc.data()!;
+    if (oldScheduleData['doctor_id'] != request.doctorId) {
+      throw Exception('Request tidak valid untuk dokter ini');
+    }
 
     // Validasi konflik sebelum approve
     final conflict = await validateScheduleConflict(
@@ -232,14 +248,6 @@ class ScheduleChangeRequestDatasource {
     );
 
     if (conflict != null) throw Exception(conflict);
-
-    // Ambil jadwal lama untuk menyalin field penting
-    final oldScheduleDoc = await _firestore
-        .collection('schedules')
-        .doc(request.oldScheduleId)
-        .get();
-    if (!oldScheduleDoc.exists) throw Exception('Jadwal lama tidak ditemukan');
-    final oldScheduleData = oldScheduleDoc.data()!;
 
     final batch = _firestore.batch();
 

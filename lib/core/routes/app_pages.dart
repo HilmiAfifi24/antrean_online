@@ -1,4 +1,6 @@
 import 'package:antrean_online/core/bindings/initial_binding.dart';
+import 'package:antrean_online/core/middleware/admin_route_middleware.dart';
+import 'package:antrean_online/core/middleware/doctor_route_middleware.dart';
 import 'package:antrean_online/features/admin/doctor_view/doctor_admin_binding.dart';
 import 'package:antrean_online/features/admin/doctor_view/presentation/pages/doctor_admin_page.dart';
 import 'package:antrean_online/features/admin/patient_view/presentation/pages/patient_admin_page.dart';
@@ -14,6 +16,8 @@ import 'package:antrean_online/features/auth/presentation/pages/admin_splash_pag
 import 'package:antrean_online/features/auth/presentation/pages/doctor_splash_page.dart';
 import 'package:antrean_online/features/auth/presentation/pages/patient_splash_page.dart';
 import 'package:antrean_online/features/auth/presentation/pages/role_selection_page.dart';
+import 'package:antrean_online/features/doctor/presentation/bindings/doctor_history_binding.dart';
+import 'package:antrean_online/features/doctor/presentation/bindings/schedule_change_binding.dart';
 import 'package:get/get.dart';
 import 'package:antrean_online/core/routes/app_routes.dart';
 
@@ -71,6 +75,7 @@ class AppPages {
       name: AppRoutes.adminSplash,
       page: () => AdminSplashPage(),
       binding: InitialBinding(),
+      middlewares: [AdminRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.login,
@@ -91,28 +96,37 @@ class AppPages {
       name: AppRoutes.admin,
       page: () => const AdminHomePage(),
       binding: AdminBinding(),
+      middlewares: [AdminRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.dokter,
       page: () => const DokterDashboard(),
       binding: doctor_binding.DoctorBinding(),
+      middlewares: [DoctorRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.doctorHome,
       page: () => const DoctorHomePage(),
       binding: doctor_binding.DoctorBinding(),
+      middlewares: [DoctorRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.doctorHistory,
       page: () => const DoctorHistoryPage(),
+      binding: DoctorHistoryBinding(),
+      middlewares: [DoctorRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.doctorScheduleChange,
       page: () => const ScheduleChangeRequestPage(),
+      binding: ScheduleChangeBinding(),
+      middlewares: [DoctorRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.doctorSessionCancellation,
       page: () => const DoctorSessionCancellationPage(),
+      binding: doctor_binding.DoctorBinding(),
+      middlewares: [DoctorRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.pasien,
@@ -123,30 +137,36 @@ class AppPages {
       name: AppRoutes.adminDoctors,
       page: () => const DoctorsPage(),
       binding: DoctorBinding(),
+      middlewares: [AdminRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.adminSchedules,
       page: () => const SchedulesPage(),
       binding: ScheduleBinding(),
+      middlewares: [AdminRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.adminPatients,
       page: () => const PatientAdminPage(),
       binding: PatientAdminBinding(),
+      middlewares: [AdminRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.adminQueues,
       page: () => const QueueViewPage(),
       binding: QueueViewBinding(),
+      middlewares: [AdminRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.adminPatientList,
       page: () => const PatientListViewPage(),
       binding: PatientListViewBinding(),
+      middlewares: [AdminRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.adminScheduleChangeRequests,
       page: () => const AdminScheduleChangeRequestPage(),
+      middlewares: [AdminRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.doctorList,

@@ -24,11 +24,21 @@ class AuthRepositoryImpl implements AuthRepository {
     await remoteDataSource.logout();
     // Clear saved credentials on logout
     await localDataSource.clearCredentials();
+    await localDataSource.clearCurrentRole();
   }
 
   @override
   Future<void> resetPassword(String email) {
     return remoteDataSource.resetPassword(email);
+  }
+
+  @override
+  Future<String?> getCurrentRoleFromServer() async {
+    final uid = remoteDataSource.firebaseAuth.currentUser?.uid;
+    if (uid == null) {
+      return null;
+    }
+    return remoteDataSource.getCurrentRoleFromServer(uid);
   }
 
   @override
@@ -49,5 +59,20 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<bool> hasRememberedCredentials() {
     return localDataSource.hasRememberedCredentials();
+  }
+
+  @override
+  Future<void> saveCurrentRole(String role) {
+    return localDataSource.saveCurrentRole(role);
+  }
+
+  @override
+  Future<String?> getCurrentRole() {
+    return localDataSource.getCurrentRole();
+  }
+
+  @override
+  Future<void> clearCurrentRole() {
+    return localDataSource.clearCurrentRole();
   }
 }

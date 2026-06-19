@@ -271,7 +271,7 @@ class _QueueDetailPageState extends State<QueueDetailPage>
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.arrow_back_ios_new_rounded,
                 color: Colors.white, size: 20),
             style: IconButton.styleFrom(

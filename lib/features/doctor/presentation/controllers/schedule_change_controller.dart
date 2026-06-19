@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import '../../data/datasources/schedule_change_request_datasource.dart';
 import '../../domain/entities/schedule_change_request_entity.dart';
 
@@ -40,6 +41,9 @@ class ScheduleChangeController extends GetxController {
       <Map<String, dynamic>>[].obs;
   final RxInt unreadCount = 0.obs;
 
+  StreamSubscription<List<ScheduleChangeRequestEntity>>? _myRequestsSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _notificationsSubscription;
+
   @override
   void onInit() {
     super.onInit();
@@ -50,6 +54,8 @@ class ScheduleChangeController extends GetxController {
 
   @override
   void onClose() {
+    _myRequestsSubscription?.cancel();
+    _notificationsSubscription?.cancel();
     reasonController.dispose();
     super.onClose();
   }
@@ -75,7 +81,8 @@ class ScheduleChangeController extends GetxController {
   // ─── Stream request saya ──────────────────────────────────────────────────
 
   void _listenMyRequests() {
-    _datasource.streamMyRequests().listen(
+    _myRequestsSubscription?.cancel();
+    _myRequestsSubscription = _datasource.streamMyRequests().listen(
       (requests) => myRequests.value = requests,
       onError: (e) => debugPrint('Error streaming requests: $e'),
     );
@@ -84,7 +91,8 @@ class ScheduleChangeController extends GetxController {
   // ─── Stream notifikasi ────────────────────────────────────────────────────
 
   void _listenNotifications() {
-    _datasource.streamDoctorNotifications().listen(
+    _notificationsSubscription?.cancel();
+    _notificationsSubscription = _datasource.streamDoctorNotifications().listen(
       (notifs) {
         notifications.value = notifs;
         unreadCount.value = notifs.where((n) => n['is_read'] == false).length;

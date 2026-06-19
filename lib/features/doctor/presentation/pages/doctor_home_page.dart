@@ -15,7 +15,7 @@ class DoctorHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(DoctorController());
+    final controller = Get.find<DoctorController>();
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
 

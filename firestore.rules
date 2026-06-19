@@ -1,0 +1,334 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function userExists(uid) {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function docRole() {
+      return userExists(request.auth.uid) ? userDoc(request.auth.uid).data.role : null;
+    }
+
+    function roleMatches(expectedRole) {
+      return signedIn()
+        && userExists(request.auth.uid)
+        && userDoc(request.auth.uid).data.is_active != false
+        && docRole() == expectedRole;
+    }
+
+    function isAdmin() {
+      return roleMatches('admin');
+    }
+
+    function isDoctor() {
+      return roleMatches('dokter');
+    }
+
+    function isPatient() {
+      return roleMatches('pasien');
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).changedKeys();
+    }
+
+    function scheduleDoc(scheduleId) {
+      return get(/databases/$(database)/documents/schedules/$(scheduleId));
+    }
+
+    function doctorOwnsSchedule(scheduleId) {
+      return exists(/databases/$(database)/documents/schedules/$(scheduleId))
+        && scheduleDoc(scheduleId).data.doctor_id == request.auth.uid
+        && scheduleDoc(scheduleId).data.is_active == true;
+    }
+
+    function queueScheduleMatchesDoctor() {
+      return exists(/databases/$(database)/documents/schedules/$(request.resource.data.schedule_id))
+        && scheduleDoc(request.resource.data.schedule_id).data.doctor_id == request.resource.data.doctor_id
+        && scheduleDoc(request.resource.data.schedule_id).data.is_active == true;
+    }
+
+    function scheduleDoctorUpdateAllowed() {
+      return changedKeys().hasOnly([
+        'current_patients',
+        'updated_at',
+      ]);
+    }
+
+    function queuePatientCancelAllowed() {
+      return resource.data.status in ['menunggu', 'waiting', 'dipanggil', 'ongoing', 'rescheduled']
+        && changedKeys().hasOnly([
+          'status',
+          'cancelled_at',
+        ])
+        && request.resource.data.status == 'cancelled_by_patient';
+    }
+
+    function queuePatientRescheduleAllowed() {
+      return resource.data.status in ['menunggu', 'waiting', 'cancelled_by_doctor']
+        && changedKeys().hasOnly([
+          'schedule_id',
+          'appointment_date',
+          'appointment_time',
+          'queue_number',
+          'status',
+          'rescheduled_from',
+          'rescheduled_at',
+          'cancellation_reason',
+          'updated_at',
+        ])
+        && request.resource.data.status == 'rescheduled'
+        && request.resource.data.patient_id == resource.data.patient_id
+        && request.resource.data.doctor_id == resource.data.doctor_id
+        && queueScheduleMatchesDoctor();
+    }
+
+    function queueDoctorCallAllowed() {
+      return resource.data.status in ['menunggu', 'waiting', 'rescheduled']
+        && changedKeys().hasOnly([
+          'status',
+          'called_at',
+        ])
+        && request.resource.data.status == 'dipanggil';
+    }
+
+    function queueDoctorCompleteAllowed() {
+      return resource.data.status == 'dipanggil'
+        && changedKeys().hasOnly([
+          'status',
+          'completed_at',
+        ])
+        && request.resource.data.status == 'selesai';
+    }
+
+    function queueDoctorSkipAllowed() {
+      return resource.data.status == 'dipanggil'
+        && changedKeys().hasOnly([
+          'status',
+          'skipped_at',
+          'queue_number',
+        ])
+        && request.resource.data.status == 'menunggu';
+    }
+
+    function queueDoctorCancelAllowed() {
+      return resource.data.status in ['menunggu', 'waiting', 'dipanggil', 'ongoing', 'rescheduled']
+        && changedKeys().hasOnly([
+          'status',
+          'cancellation_reason',
+          'cancelled_at',
+          'updated_at',
+        ])
+        && request.resource.data.status == 'cancelled_by_doctor';
+    }
+
+    function doctorNotificationReadOnlyUpdate() {
+      return changedKeys().hasOnly(['is_read'])
+        && request.resource.data.is_read == true;
+    }
+
+    function patientNotificationReadOnlyUpdate() {
+      return changedKeys().hasOnly(['is_read'])
+        && request.resource.data.is_read == true;
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+
+      allow create: if isAdmin()
+        || (isOwner(userId)
+          && request.resource.data.role == 'pasien'
+          && request.resource.data.email is string
+          && request.resource.data.name is string
+          && request.resource.data.phone is string);
+
+      allow update: if isAdmin()
+        || (isOwner(userId)
+          && request.resource.data.role == resource.data.role
+          && changedKeys().hasOnly(['name', 'phone', 'updated_at']));
+
+      allow delete: if isAdmin();
+    }
+
+    match /doctors/{doctorId} {
+      allow read: if signedIn()
+        && (isAdmin()
+          || resource.data.user_id == request.auth.uid);
+
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /doctors_public/{doctorId} {
+      allow read: if signedIn()
+        && (isAdmin() || resource.data.is_active == true);
+
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if signedIn()
+        && (isAdmin()
+          || resource.data.is_active == true
+          || resource.data.doctor_id == request.auth.uid);
+
+      allow create, delete: if isAdmin();
+
+      allow update: if isAdmin()
+        || (isDoctor()
+          && resource.data.doctor_id == request.auth.uid
+          && scheduleDoctorUpdateAllowed());
+    }
+
+    match /queues/{queueId} {
+      allow read: if signedIn()
+        && (isAdmin()
+          || resource.data.patient_id == request.auth.uid
+          || resource.data.doctor_id == request.auth.uid);
+
+      allow create: if signedIn()
+        && (
+          isAdmin()
+          || (isPatient()
+            && request.resource.data.patient_id == request.auth.uid
+            && request.resource.data.status == 'menunggu'
+            && request.resource.data.doctor_id is string
+            && request.resource.data.schedule_id is string
+            && request.resource.data.patient_name is string
+            && request.resource.data.doctor_name is string
+            && request.resource.data.doctor_specialization is string
+            && request.resource.data.appointment_date is timestamp
+            && request.resource.data.appointment_time is string
+            && request.resource.data.queue_number is int
+            && request.resource.data.complaint is string
+            && queueScheduleMatchesDoctor())
+        );
+
+      allow update: if isAdmin()
+        || (resource.data.patient_id == request.auth.uid
+          && (queuePatientCancelAllowed() || queuePatientRescheduleAllowed()))
+        || (resource.data.doctor_id == request.auth.uid
+          && (queueDoctorCallAllowed() || queueDoctorCompleteAllowed() || queueDoctorSkipAllowed() || queueDoctorCancelAllowed()));
+
+      allow delete: if isAdmin();
+    }
+
+    match /schedule_change_requests/{requestId} {
+      allow read: if isAdmin()
+        || (isDoctor() && resource.data.doctor_id == request.auth.uid);
+
+      allow create: if isDoctor()
+        && request.resource.data.doctor_id == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.old_schedule_id is string
+        && doctorOwnsSchedule(request.resource.data.old_schedule_id)
+        && request.resource.data.old_day is string
+        && request.resource.data.old_start_time is string
+        && request.resource.data.old_end_time is string
+        && request.resource.data.new_day is string
+        && request.resource.data.new_start_time is string
+        && request.resource.data.new_end_time is string
+        && request.resource.data.reason is string
+        && request.resource.data.doctor_name is string
+        && request.resource.data.doctor_phone is string
+        && request.resource.data.admin_approver_id == null
+        && request.resource.data.rejection_reason == null;
+
+      allow update, delete: if isAdmin();
+    }
+
+    match /doctor_notifications/{notificationId} {
+      allow read: if isAdmin()
+        || (isDoctor() && resource.data.doctor_id == request.auth.uid);
+
+      allow create: if isAdmin()
+        || (isDoctor()
+          && request.resource.data.doctor_id == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.body is string
+          && request.resource.data.type is string
+          && request.resource.data.request_id is string
+          && request.resource.data.is_read == false);
+
+      allow update: if isAdmin()
+        || (isDoctor()
+          && resource.data.doctor_id == request.auth.uid
+          && doctorNotificationReadOnlyUpdate());
+
+      allow delete: if isAdmin();
+    }
+
+    match /doctor_absences/{absenceId} {
+      allow read: if isAdmin()
+        || (isDoctor() && resource.data.doctor_id == request.auth.uid);
+
+      allow create: if isDoctor()
+        && request.resource.data.doctor_id == request.auth.uid
+        && request.resource.data.doctor_name is string
+        && request.resource.data.date is timestamp
+        && request.resource.data.status == 'reported';
+
+      allow update: if isAdmin()
+        || (isDoctor()
+          && resource.data.doctor_id == request.auth.uid
+          && request.resource.data.doctor_id == resource.data.doctor_id
+          && request.resource.data.doctor_name is string
+          && request.resource.data.date is timestamp
+          && request.resource.data.status is string);
+
+      allow delete: if isAdmin()
+        || (isDoctor() && resource.data.doctor_id == request.auth.uid);
+    }
+
+    match /patient_notifications/{notificationId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.patient_id == request.auth.uid);
+
+      allow create: if isDoctor()
+        && request.resource.data.doctor_id == request.auth.uid
+        && request.resource.data.patient_id is string
+        && request.resource.data.queue_id is string
+        && request.resource.data.doctor_name is string
+        && request.resource.data.schedule_id is string
+        && request.resource.data.title is string
+        && request.resource.data.message is string
+        && request.resource.data.reason is string
+        && request.resource.data.is_read == false;
+
+      allow update: if isAdmin()
+        || (signedIn()
+          && resource.data.patient_id == request.auth.uid
+          && patientNotificationReadOnlyUpdate());
+
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /deleted_accounts/{accountId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /activities/{activityId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

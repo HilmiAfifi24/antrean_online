@@ -12,6 +12,7 @@ class PatientListViewController extends GetxController {
   final RxList<PatientListEntity> _patients = <PatientListEntity>[].obs;
   final RxBool _isLoading = false.obs;
   final RxString _searchQuery = ''.obs;
+  final RxnString _errorMessage = RxnString();
 
   // Stream subscription
   StreamSubscription? _patientsSubscription;
@@ -20,6 +21,7 @@ class PatientListViewController extends GetxController {
   List<PatientListEntity> get patients => _patients;
   bool get isLoading => _isLoading.value;
   String get searchQuery => _searchQuery.value;
+  String? get errorMessage => _errorMessage.value;
 
   // Filtered patients based on search query
   List<PatientListEntity> get filteredPatients {
@@ -39,29 +41,34 @@ class PatientListViewController extends GetxController {
   int get todayRegistrations {
     final today = DateTime.now();
     final startOfDay = DateTime(today.year, today.month, today.day);
-    final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59);
+    final nextDay = startOfDay.add(const Duration(days: 1));
     
     return _patients.where((patient) {
-      return patient.createdAt.isAfter(startOfDay) && 
-             patient.createdAt.isBefore(endOfDay);
+      return !patient.createdAt.isBefore(startOfDay) &&
+             patient.createdAt.isBefore(nextDay);
     }).length;
   }
 
   int get thisWeekRegistrations {
     final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday));
+    final startOfWeek = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - DateTime.monday));
+    final nextWeek = startOfWeek.add(const Duration(days: 7));
     
     return _patients.where((patient) {
-      return patient.createdAt.isAfter(startOfWeek);
+      return !patient.createdAt.isBefore(startOfWeek) &&
+             patient.createdAt.isBefore(nextWeek);
     }).length;
   }
 
   int get thisMonthRegistrations {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
+    final nextMonth = DateTime(now.year, now.month + 1, 1);
     
     return _patients.where((patient) {
-      return patient.createdAt.isAfter(startOfMonth);
+      return !patient.createdAt.isBefore(startOfMonth) &&
+             patient.createdAt.isBefore(nextMonth);
     }).length;
   }
 
@@ -80,20 +87,20 @@ class PatientListViewController extends GetxController {
   // Setup realtime listener for patients
   void _setupRealtimeListener() {
     _isLoading.value = true;
+    _errorMessage.value = null;
     _patientsSubscription?.cancel();
     
     _patientsSubscription = getAllPatients().listen(
       (patients) {
+        if (isClosed) return;
         _patients.value = patients;
         _isLoading.value = false;
+        _errorMessage.value = null;
       },
       onError: (error) {
+        if (isClosed) return;
         _isLoading.value = false;
-        Get.snackbar(
-          'Error',
-          'Gagal memuat data pasien: $error',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        _errorMessage.value = 'Gagal memuat data pasien: $error';
       },
     );
   }

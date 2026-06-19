@@ -16,6 +16,8 @@ class AuthRemoteDataSource {
       );
       final uid = credential.user!.uid;
 
+      await credential.user?.getIdToken(true);
+
       if(!email.endsWith("@pens.ac.id")) {
         await firebaseAuth.signOut();
         throw Exception("Email harus menggunakan domain @pens.ac.id");
@@ -27,8 +29,20 @@ class AuthRemoteDataSource {
         await firebaseAuth.signOut();
         throw Exception("Data pengguna tidak ditemukan");
       }
-      
-      return UserModel.fromFirestore(doc.data()!, uid);
+
+      final data = doc.data()!;
+      if (data['is_active'] == false) {
+        await firebaseAuth.signOut();
+        throw Exception("Akun Anda telah dinonaktifkan. Hubungi administrator");
+      }
+
+      final role = data['role'];
+      if (role is! String || role.trim().isEmpty) {
+        await firebaseAuth.signOut();
+        throw Exception("Role pengguna tidak valid. Hubungi administrator");
+      }
+
+      return UserModel.fromFirestore(data, uid);
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'user-not-found':
@@ -59,6 +73,10 @@ class AuthRemoteDataSource {
       if (!email.endsWith("@pens.ac.id")) {
         throw Exception("Email harus menggunakan domain @pens.ac.id");
       }
+
+      if (role != 'pasien') {
+        throw Exception('Registrasi self-service hanya diizinkan untuk role pasien');
+      }
       
       final credential = await firebaseAuth.createUserWithEmailAndPassword(
         email: email,
@@ -66,17 +84,28 @@ class AuthRemoteDataSource {
       );
       final uid = credential.user!.uid;
 
-      final userModel = UserModel(uid: uid, email: email, role: role);
-      
-      // Save user data with name and phone to Firestore
-      await firestore.collection("users").doc(uid).set({
+      const assignedRole = 'pasien';
+      final userModel = UserModel(uid: uid, email: email, role: assignedRole);
+
+      try {
+        // Save user data with name and phone to Firestore
+        await firestore.collection("users").doc(uid).set({
         ...userModel.toMap(),
         'name': name,
         'phone': phone,
+        'is_active': true,
         'created_at': FieldValue.serverTimestamp(),
-      });
-      
-      return userModel;
+        });
+
+        return userModel;
+      } catch (e) {
+        try {
+          await credential.user?.delete();
+        } catch (_) {
+          // Ignore rollback errors; the original failure is still more important.
+        }
+        rethrow;
+      }
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'email-already-in-use':
@@ -125,6 +154,29 @@ class AuthRemoteDataSource {
         rethrow;
       }
       throw Exception('Gagal mengirim email reset password: ${e.toString()}');
+    }
+  }
+
+  Future<String?> getCurrentRoleFromServer(String uid) async {
+    try {
+      final doc = await firestore.collection('users').doc(uid).get();
+      if (!doc.exists) {
+        return null;
+      }
+
+      final data = doc.data();
+      if (data?['is_active'] == false) {
+        return null;
+      }
+
+      final role = data?['role'];
+      if (role is String && role.isNotEmpty) {
+        return role;
+      }
+
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 }

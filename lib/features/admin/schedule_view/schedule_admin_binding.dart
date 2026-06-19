@@ -131,7 +131,6 @@ class ScheduleBinding extends Bindings {
         getSchedulesByDoctor: Get.find<GetSchedulesByDoctor>(),
         getAllDoctors: Get.find<GetAllDoctors>(),
       ),
-      permanent: true,
     );
 
     // Initialize Notification services directly to avoid 'not found' errors in dialogs

@@ -40,7 +40,7 @@ class DoctorsHeader extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: IconButton(
-                          onPressed: () => Get.back(),
+                          onPressed: () => Navigator.of(context).maybePop(),
                           icon: const Icon(
                             Icons.arrow_back_ios_new_rounded,
                             color: Colors.white,

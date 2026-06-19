@@ -54,7 +54,6 @@ class DoctorBinding extends Bindings {
         searchDoctors: Get.find(),
         getSpecializations: Get.find(),
       ),
-      permanent: true,
     );
   }
 }

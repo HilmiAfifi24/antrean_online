@@ -53,7 +53,7 @@ class DoctorListController extends GetxController {
     _doctorsSubscription?.cancel();
 
     _doctorsSubscription = FirebaseFirestore.instance
-        .collection('doctors')
+        .collection('doctors_public')
         .where('is_active', isEqualTo: true)
         .snapshots()
         .listen((snapshot) {
@@ -62,9 +62,9 @@ class DoctorListController extends GetxController {
           final data = doc.data();
           return DoctorEntity(
             id: doc.id,
-            name: data['name'] ?? '',
-            specialization: data['specialization'] ?? '',
-            phone: data['phone'] ?? '',
+            name: data['name'] ?? data['nama_lengkap'] ?? '',
+            specialization: data['specialization'] ?? data['spesialisasi'] ?? '',
+            phone: data['phone'] ?? data['nomor_telepon'] ?? '',
             email: data['email'] ?? '',
             isActive: data['is_active'] ?? false,
           );

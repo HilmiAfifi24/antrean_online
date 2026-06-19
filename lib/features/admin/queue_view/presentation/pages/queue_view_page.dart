@@ -34,7 +34,7 @@ class QueueViewPage extends StatelessWidget {
         backgroundColor: const Color(0xFF3B82F6),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Obx(() => Column(
           crossAxisAlignment: CrossAxisAlignment.start,

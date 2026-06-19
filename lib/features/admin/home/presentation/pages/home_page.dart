@@ -14,16 +14,7 @@ class AdminHomePage extends StatefulWidget {
   State<AdminHomePage> createState() => _AdminHomePageState();
 }
 
-class _AdminHomePageState extends State<AdminHomePage> with RouteAware {
-  @override
-  void initState() {
-    super.initState();
-    // Refresh data saat pertama kali dibuka
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<AdminController>().loadDashboardData();
-    });
-  }
-
+class _AdminHomePageState extends State<AdminHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
