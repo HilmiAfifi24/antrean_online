@@ -1,6 +1,7 @@
 import 'package:antrean_online/core/bindings/initial_binding.dart';
 import 'package:antrean_online/core/middleware/admin_route_middleware.dart';
 import 'package:antrean_online/core/middleware/doctor_route_middleware.dart';
+import 'package:antrean_online/core/middleware/patient_route_middleware.dart';
 import 'package:antrean_online/features/admin/doctor_view/doctor_admin_binding.dart';
 import 'package:antrean_online/features/admin/doctor_view/presentation/pages/doctor_admin_page.dart';
 import 'package:antrean_online/features/admin/patient_view/presentation/pages/patient_admin_page.dart';
@@ -132,6 +133,7 @@ class AppPages {
       name: AppRoutes.pasien,
       page: () => const PatientHomePage(),
       binding: PatientBinding(),
+      middlewares: [PatientRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.adminDoctors,
@@ -181,36 +183,43 @@ class AppPages {
     GetPage(
       name: AppRoutes.queue,
       page: () => const QueuePage(),
+      middlewares: [PatientRouteMiddleware()],
       // Inherits QueueController from PatientBinding globally
     ),
     GetPage(
       name: AppRoutes.queueDetail,
       page: () => const QueueDetailPage(),
+      middlewares: [PatientRouteMiddleware()],
       // Inherits QueueController & PatientQueueRepository from PatientBinding globally
     ),
     GetPage(
       name: AppRoutes.queueHistory,
       page: () => const QueueHistoryPage(),
       binding: QueueHistoryBinding(),
+      middlewares: [PatientRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.patientReschedule,
       page: () => const PatientReschedulePage(),
+      middlewares: [PatientRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.selectSchedule,
       page: () => const SelectSchedulePage(),
       binding: PatientBinding(),
+      middlewares: [PatientRouteMiddleware()],
     ),
     GetPage(
       name: AppRoutes.booking,
       page: () => const BookingFormPage(),
+      middlewares: [PatientRouteMiddleware()],
       // Inherits QueueController from PatientBinding globally
     ),
     GetPage(
       name: AppRoutes.profile,
       page: () => const ProfilePage(),
       binding: PatientBinding(),
+      middlewares: [PatientRouteMiddleware()],
     ),
   ];
 }

@@ -44,6 +44,7 @@ class ScheduleChangeRequestEntity {
   final String? rejectionReason;
   final DateTime createdAt;
   final DateTime? approvedAt;
+  final DateTime? rejectedAt;
 
   const ScheduleChangeRequestEntity({
     required this.requestId,
@@ -63,6 +64,7 @@ class ScheduleChangeRequestEntity {
     this.rejectionReason,
     required this.createdAt,
     this.approvedAt,
+    this.rejectedAt,
   });
 
   factory ScheduleChangeRequestEntity.fromFirestore(
@@ -87,6 +89,7 @@ class ScheduleChangeRequestEntity {
       rejectionReason: data['rejection_reason'],
       createdAt: (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
       approvedAt: (data['approved_at'] as Timestamp?)?.toDate(),
+      rejectedAt: (data['rejected_at'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -108,6 +111,7 @@ class ScheduleChangeRequestEntity {
       'rejection_reason': rejectionReason,
       'created_at': FieldValue.serverTimestamp(),
       'approved_at': approvedAt != null ? Timestamp.fromDate(approvedAt!) : null,
+      'rejected_at': rejectedAt != null ? Timestamp.fromDate(rejectedAt!) : null,
     };
   }
 }

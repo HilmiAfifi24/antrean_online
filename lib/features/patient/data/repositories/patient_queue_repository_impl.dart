@@ -14,6 +14,11 @@ class PatientQueueRepositoryImpl implements PatientQueueRepository {
   }
 
   @override
+  Future<void> cleanupExpiredQueues(String patientId) {
+    return dataSource.cleanupExpiredQueues(patientId);
+  }
+
+  @override
   Future<bool> validateMultipleBooking({
     required String patientId,
     required String doctorId,

@@ -243,24 +243,22 @@ class _SelectSchedulePageState extends State<SelectSchedulePage> {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: isFull
-                  ? null
-                  : () {
-                      final fixedSchedule = ScheduleEntity(
-                        id: schedule.id,
-                        doctorId: schedule.doctorId,
-                        doctorName: schedule.doctorName,
-                        doctorSpecialization: schedule.doctorSpecialization,
-                        date: correctDate,
-                        startTime: schedule.startTime,
-                        endTime: schedule.endTime,
-                        daysOfWeek: schedule.daysOfWeek,
-                        maxPatients: schedule.maxPatients,
-                        currentPatients: booked,
-                        isActive: schedule.isActive,
-                      );
-                      Get.toNamed(AppRoutes.booking, arguments: fixedSchedule);
-                    },
+              onTap: () {
+                final fixedSchedule = ScheduleEntity(
+                  id: schedule.id,
+                  doctorId: schedule.doctorId,
+                  doctorName: schedule.doctorName,
+                  doctorSpecialization: schedule.doctorSpecialization,
+                  date: correctDate,
+                  startTime: schedule.startTime,
+                  endTime: schedule.endTime,
+                  daysOfWeek: schedule.daysOfWeek,
+                  maxPatients: schedule.maxPatients,
+                  currentPatients: booked,
+                  isActive: schedule.isActive,
+                );
+                Get.toNamed(AppRoutes.booking, arguments: fixedSchedule);
+              },
               borderRadius: BorderRadius.circular(16),
               child: Padding(
                 padding: const EdgeInsets.all(16),

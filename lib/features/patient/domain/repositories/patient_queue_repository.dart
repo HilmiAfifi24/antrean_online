@@ -4,6 +4,8 @@ import '../entities/schedule_entity.dart';
 abstract class PatientQueueRepository {
   Future<List<QueueEntity>> getActiveQueues(String patientId);
 
+  Future<void> cleanupExpiredQueues(String patientId);
+
   Future<bool> validateMultipleBooking({
     required String patientId,
     required String doctorId,

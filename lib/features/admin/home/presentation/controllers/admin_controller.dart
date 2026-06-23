@@ -4,6 +4,7 @@ import '../../domain/usecases/get_recent_activities.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:antrean_online/features/auth/presentation/controllers/auth_controller.dart';
 
 class AdminController extends GetxController {
   final GetDashboardStats getDashboardStats;
@@ -29,14 +30,72 @@ class AdminController extends GetxController {
   StreamSubscription? _queuesSubscription;
   StreamSubscription? _activitiesSubscription;
   Timer? _timestampUpdateTimer;
+  Worker? _authUserWorker;
+  Worker? _authReadyWorker;
+  AuthController? _authController;
+  bool _hasAdminAccess = false;
 
   @override
   void onInit() {
     super.onInit();
+    _bindAuthState();
+    _setupTimestampUpdateTimer();
+  }
+
+  bool _canAccessAdminData() {
+    final auth = _authController ??
+        (Get.isRegistered<AuthController>()
+            ? Get.find<AuthController>()
+            : null);
+    final user = auth?.currentUser.value;
+    return auth?.isSessionReady.value == true && user?.role == 'admin';
+  }
+
+  void _bindAuthState() {
+    if (!Get.isRegistered<AuthController>()) {
+      return;
+    }
+
+    _authController = Get.find<AuthController>();
+    _authUserWorker?.dispose();
+    _authReadyWorker?.dispose();
+
+    _authUserWorker = ever(_authController!.currentUser, (_) {
+      _syncAdminAccess();
+    });
+
+    _authReadyWorker = ever(_authController!.isSessionReady, (_) {
+      _syncAdminAccess();
+    });
+
+    _syncAdminAccess();
+  }
+
+  void _syncAdminAccess() {
+    final canAccess = _canAccessAdminData();
+    if (canAccess == _hasAdminAccess) {
+      return;
+    }
+
+    _hasAdminAccess = canAccess;
+
+    if (!canAccess) {
+      _doctorsSubscription?.cancel();
+      _schedulesSubscription?.cancel();
+      _patientsSubscription?.cancel();
+      _queuesSubscription?.cancel();
+      _activitiesSubscription?.cancel();
+      totalPasien.value = 0;
+      totalDokter.value = 0;
+      totalJadwal.value = 0;
+      totalAntrean.value = 0;
+      recentActivities.clear();
+      return;
+    }
+
     loadDashboardData();
     loadRecentActivities();
     _setupRealtimeListener();
-    _setupTimestampUpdateTimer();
   }
 
   // Setup timer untuk update timestamp setiap menit
@@ -49,6 +108,10 @@ class AdminController extends GetxController {
   }
 
   void _setupRealtimeListener() {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     // Cancel existing subscriptions
     _doctorsSubscription?.cancel();
     _schedulesSubscription?.cancel();
@@ -65,6 +128,9 @@ class AdminController extends GetxController {
       totalDokter.value = snapshot.docs
           .where((doc) => (doc.data()['is_active'] as bool?) ?? true)
           .length;
+    }, onError: (error) {
+      if (isClosed) return;
+      debugPrint('Failed to listen to doctors collection: $error');
     });
 
     // Listen to schedules collection untuk auto-update total jadwal
@@ -76,6 +142,9 @@ class AdminController extends GetxController {
       totalJadwal.value = snapshot.docs
           .where((doc) => (doc.data()['is_active'] as bool?) ?? true)
           .length;
+    }, onError: (error) {
+      if (isClosed) return;
+      debugPrint('Failed to listen to schedules collection: $error');
     });
 
     // Listen to users collection untuk auto-update total pasien
@@ -86,6 +155,9 @@ class AdminController extends GetxController {
         .listen((snapshot) {
       if (isClosed) return;
       totalPasien.value = snapshot.docs.length;
+    }, onError: (error) {
+      if (isClosed) return;
+      debugPrint('Failed to listen to users collection: $error');
     });
 
     // Listen to queues collection untuk auto-update total antrean
@@ -95,6 +167,9 @@ class AdminController extends GetxController {
         .listen((snapshot) {
       if (isClosed) return;
       totalAntrean.value = snapshot.docs.length;
+    }, onError: (error) {
+      if (isClosed) return;
+      debugPrint('Failed to listen to queues collection: $error');
     });
 
     // Listen to activities collection untuk auto-update riwayat aktivitas
@@ -115,6 +190,9 @@ class AdminController extends GetxController {
           'type': data['type'] ?? 'default',
         };
       }).toList();
+    }, onError: (error) {
+      if (isClosed) return;
+      debugPrint('Failed to listen to activities collection: $error');
     });
   }
 
@@ -126,6 +204,8 @@ class AdminController extends GetxController {
     _patientsSubscription?.cancel();
     _queuesSubscription?.cancel();
     _activitiesSubscription?.cancel();
+    _authUserWorker?.dispose();
+    _authReadyWorker?.dispose();
     
     // Cancel timestamp update timer
     _timestampUpdateTimer?.cancel();
@@ -135,6 +215,10 @@ class AdminController extends GetxController {
 
   // Load dashboard statistics from Firebase
   Future<void> loadDashboardData() async {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     try {
       isLoading.value = true;
       
@@ -161,6 +245,10 @@ class AdminController extends GetxController {
 
   // Load recent activities from Firebase
   Future<void> loadRecentActivities() async {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     try {
       final activities = await getRecentActivities();
       recentActivities.value = activities;

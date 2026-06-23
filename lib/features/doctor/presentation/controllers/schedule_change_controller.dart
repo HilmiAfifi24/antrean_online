@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
+import 'package:antrean_online/core/utils/app_snackbar.dart';
 import '../../data/datasources/schedule_change_request_datasource.dart';
 import '../../domain/entities/schedule_change_request_entity.dart';
 
@@ -67,11 +68,10 @@ class ScheduleChangeController extends GetxController {
       isLoading.value = true;
       activeSchedules.value = await _datasource.getMyActiveSchedules();
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Gagal memuat jadwal: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red[100],
+      AppSnackbar.show(
+        title: 'Error',
+        message: 'Gagal memuat jadwal: $e',
+        isError: true,
       );
     } finally {
       isLoading.value = false;
@@ -107,14 +107,21 @@ class ScheduleChangeController extends GetxController {
 
   // ─── Pilih jadwal yang akan diubah ────────────────────────────────────────
 
-  void selectSchedule(Map<String, dynamic> schedule) {
+  void selectSchedule(
+    Map<String, dynamic> schedule, {
+    String? day,
+  }) {
     selectedScheduleId.value = schedule['id'] ?? '';
     final days = List<String>.from(schedule['days_of_week'] ?? []);
-    selectedOldDay.value = days.isNotEmpty ? days.first : '';
+    if (day != null && day.isNotEmpty && days.contains(day)) {
+      selectedOldDay.value = day;
+    } else {
+      selectedOldDay.value = days.isNotEmpty ? days.first : '';
+    }
     selectedOldStartTime.value = schedule['start_time'] ?? '';
     selectedOldEndTime.value = schedule['end_time'] ?? '';
     selectedScheduleLabel.value =
-        '${days.join(', ')} • ${schedule['start_time']} – ${schedule['end_time']}';
+        '${selectedOldDay.value} • ${schedule['start_time']} – ${schedule['end_time']}';
 
     // Reset new values
     newDay.value = '';
@@ -126,23 +133,43 @@ class ScheduleChangeController extends GetxController {
 
   Future<void> submitRequest() async {
     if (selectedScheduleId.isEmpty) {
-      Get.snackbar('Peringatan', 'Pilih jadwal yang ingin diubah',
-          snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show(
+        title: 'Peringatan',
+        message: 'Pilih jadwal yang ingin diubah',
+        isError: true,
+      );
+      return;
+    }
+    if (selectedOldDay.isEmpty) {
+      AppSnackbar.show(
+        title: 'Peringatan',
+        message: 'Pilih hari jadwal yang ingin diubah',
+        isError: true,
+      );
       return;
     }
     if (newDay.isEmpty) {
-      Get.snackbar('Peringatan', 'Pilih hari baru',
-          snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show(
+        title: 'Peringatan',
+        message: 'Pilih hari baru',
+        isError: true,
+      );
       return;
     }
     if (newStartTime.isEmpty || newEndTime.isEmpty) {
-      Get.snackbar('Peringatan', 'Pilih jam mulai dan jam selesai baru',
-          snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show(
+        title: 'Peringatan',
+        message: 'Pilih jam mulai dan jam selesai baru',
+        isError: true,
+      );
       return;
     }
     if (reasonController.text.trim().isEmpty) {
-      Get.snackbar('Peringatan', 'Isi alasan perubahan jadwal',
-          snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show(
+        title: 'Peringatan',
+        message: 'Isi alasan perubahan jadwal',
+        isError: true,
+      );
       return;
     }
 
@@ -152,13 +179,19 @@ class ScheduleChangeController extends GetxController {
     final startMin = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
     final endMin = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
     if (endMin <= startMin) {
-      Get.snackbar('Peringatan', 'Jam selesai harus lebih dari jam mulai',
-          snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show(
+        title: 'Peringatan',
+        message: 'Jam selesai harus lebih dari jam mulai',
+        isError: true,
+      );
       return;
     }
 
     try {
       isSubmitting.value = true;
+      debugPrint(
+        '[ScheduleChange] submit request oldSchedule=${selectedScheduleId.value} oldDay=${selectedOldDay.value} newDay=${newDay.value}',
+      );
 
       await _datasource.submitScheduleChangeRequest(
         oldScheduleId: selectedScheduleId.value,
@@ -171,24 +204,20 @@ class ScheduleChangeController extends GetxController {
         reason: reasonController.text.trim(),
       );
 
-      Get.back(); // Tutup form
-      Get.snackbar(
-        'Berhasil',
-        'Permintaan perubahan jadwal berhasil dikirim dan menunggu persetujuan admin',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green[100],
-        duration: const Duration(seconds: 4),
+      AppSnackbar.show(
+        title: 'Berhasil',
+        message:
+            'Permintaan perubahan jadwal berhasil dikirim dan menunggu persetujuan admin',
       );
 
       // Reset form
       _resetForm();
     } catch (e) {
-      Get.snackbar(
-        'Gagal',
-        e.toString().replaceFirst('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red[100],
-        duration: const Duration(seconds: 4),
+      debugPrint('[ScheduleChange] submit failed: $e');
+      AppSnackbar.show(
+        title: 'Gagal',
+        message: e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
       );
     } finally {
       isSubmitting.value = false;
@@ -212,6 +241,13 @@ class ScheduleChangeController extends GetxController {
   String formatScheduleLabel(Map<String, dynamic> schedule) {
     final days = List<String>.from(schedule['days_of_week'] ?? []);
     return '${days.join(', ')} • ${schedule['start_time'] ?? ''} – ${schedule['end_time'] ?? ''}';
+  }
+
+  String formatScheduleDayLabel(
+    Map<String, dynamic> schedule,
+    String day,
+  ) {
+    return '$day • ${schedule['start_time'] ?? ''} – ${schedule['end_time'] ?? ''}';
   }
 
   String getStatusLabel(ScheduleChangeRequestStatus status) {
@@ -252,6 +288,9 @@ class AdminScheduleChangeController extends GetxController {
   final RxBool isProcessing = false.obs;
   final rejectionReasonController = TextEditingController();
 
+  final RxString processingApproveRequestId = ''.obs;
+  final RxString processingRejectRequestId = ''.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -288,8 +327,9 @@ class AdminScheduleChangeController extends GetxController {
         .toList();
   }
 
-  Future<void> approveRequest(String requestId) async {
+  Future<void> approveRequest(String requestId, {bool isDialog = false, BuildContext? context}) async {
     try {
+      processingApproveRequestId.value = requestId;
       isProcessing.value = true;
       final adminId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -298,36 +338,39 @@ class AdminScheduleChangeController extends GetxController {
         adminId: adminId,
       );
 
-      Get.back(); // Tutup dialog detail
-      Get.snackbar(
-        'Berhasil',
-        'Perubahan jadwal telah disetujui dan jadwal baru telah dibuat',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green[100],
-        duration: const Duration(seconds: 4),
+      if (isDialog && context != null && context.mounted) {
+        Navigator.of(context).pop(); // Tutup dialog detail
+      }
+      
+      AppSnackbar.show(
+        title: 'Berhasil',
+        message: 'Perubahan jadwal telah disetujui dan jadwal baru telah dibuat',
       );
     } catch (e) {
-      Get.snackbar(
-        'Gagal',
-        e.toString().replaceFirst('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red[100],
-        duration: const Duration(seconds: 5),
+      AppSnackbar.show(
+        title: 'Gagal',
+        message: e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
       );
     } finally {
+      processingApproveRequestId.value = '';
       isProcessing.value = false;
     }
   }
 
-  Future<void> rejectRequest(String requestId) async {
+  Future<void> rejectRequest(String requestId, BuildContext dialogContext) async {
     final reason = rejectionReasonController.text.trim();
     if (reason.isEmpty) {
-      Get.snackbar('Peringatan', 'Masukkan alasan penolakan',
-          snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show(
+        title: 'Peringatan',
+        message: 'Masukkan alasan penolakan',
+        isError: true,
+      );
       return;
     }
 
     try {
+      processingRejectRequestId.value = requestId;
       isProcessing.value = true;
       final adminId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -337,23 +380,23 @@ class AdminScheduleChangeController extends GetxController {
         rejectionReason: reason,
       );
 
-      Get.back(); // Tutup dialog reject
-      Get.back(); // Tutup dialog detail
-      Get.snackbar(
-        'Berhasil',
-        'Permintaan perubahan jadwal ditolak',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.orange[100],
+      if (dialogContext.mounted) {
+        Navigator.of(dialogContext).pop(); // Tutup dialog reject
+      }
+      
+      AppSnackbar.show(
+        title: 'Berhasil',
+        message: 'Permintaan perubahan jadwal ditolak',
       );
       rejectionReasonController.clear();
     } catch (e) {
-      Get.snackbar(
-        'Gagal',
-        e.toString().replaceFirst('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red[100],
+      AppSnackbar.show(
+        title: 'Gagal',
+        message: e.toString().replaceFirst('Exception: ', ''),
+        isError: true,
       );
     } finally {
+      processingRejectRequestId.value = '';
       isProcessing.value = false;
     }
   }

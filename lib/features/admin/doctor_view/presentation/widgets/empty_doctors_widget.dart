@@ -188,7 +188,7 @@ class EmptyDoctorsWidget extends StatelessWidget {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: controller.showAddDoctorDialog,
+                        onTap: () => controller.showAddDoctorDialog(context),
                         borderRadius: BorderRadius.circular(14),
                         child: const Padding(
                           padding: EdgeInsets.symmetric(

@@ -71,6 +71,19 @@ class QueueRemoteDataSource {
     }
   }
 
+  DocumentReference<Map<String, dynamic>> _bookingSequenceRef(
+    String scheduleId,
+  ) {
+    return firestore.collection('queue_sequence_counters').doc(scheduleId);
+  }
+
+  DocumentReference<Map<String, dynamic>> _patientBookingLockRef({
+    required String patientId,
+    required String doctorId,
+  }) {
+    return firestore.collection('patient_queue_locks').doc('${patientId}_$doctorId');
+  }
+
   QueueEntity _queueFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     return QueueEntity(
@@ -133,10 +146,7 @@ class QueueRemoteDataSource {
             : now;
         final appointmentDay = _normalizeDate(appointmentDate);
 
-        if (appointmentDay.isBefore(today)) {
-          await cancelQueue(doc.id, data['schedule_id'] ?? '');
-          continue;
-        }
+        if (appointmentDay.isBefore(today)) continue;
 
         activeQueues.add(_queueFromDoc(doc));
       }
@@ -147,21 +157,61 @@ class QueueRemoteDataSource {
     }
   }
 
+  Future<void> cleanupExpiredQueues(String patientId) async {
+    try {
+      final querySnapshot = await firestore
+          .collection('queues')
+          .where('patient_id', isEqualTo: patientId)
+          .where('status', whereIn: [
+            'menunggu',
+            'waiting',
+            'dipanggil',
+            'ongoing',
+            'rescheduled',
+          ])
+          .orderBy('appointment_date')
+          .orderBy('queue_number')
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return;
+      }
+
+      final today = _normalizeDate(DateTime.now());
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final appointmentDate = data['appointment_date'] != null
+            ? (data['appointment_date'] as Timestamp).toDate()
+            : DateTime.now();
+        if (_normalizeDate(appointmentDate).isBefore(today)) {
+          await cancelQueue(doc.id, data['schedule_id'] ?? '');
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to cleanup expired queues: $e');
+    }
+  }
+
   Future<bool> validateMultipleBooking({
     required String patientId,
     required String doctorId,
     required DateTime appointmentDate,
   }) async {
-    final normalizedDate = _normalizeDate(appointmentDate);
     final querySnapshot = await firestore
         .collection('queues')
         .where('patient_id', isEqualTo: patientId)
         .where('doctor_id', isEqualTo: doctorId)
         .where(
           'appointment_date',
-          isEqualTo: Timestamp.fromDate(normalizedDate),
+          isEqualTo: Timestamp.fromDate(_normalizeDate(appointmentDate)),
         )
-        .where('status', whereIn: ['menunggu', 'dipanggil'])
+        .where('status', whereIn: [
+          'menunggu',
+          'waiting',
+          'dipanggil',
+          'ongoing',
+          'rescheduled',
+        ])
         .limit(1)
         .get();
 
@@ -187,61 +237,119 @@ class QueueRemoteDataSource {
       // Normalize date to start of day (remove time component)
       final normalizedDate = _normalizeDate(appointmentDate);
 
-      final isValid = await validateMultipleBooking(
+      final queueRef = firestore.collection('queues').doc();
+      final sequenceRef = _bookingSequenceRef(scheduleId);
+      final patientLockRef = _patientBookingLockRef(
         patientId: patientId,
         doctorId: doctorId,
-        appointmentDate: normalizedDate,
       );
-
-      if (!isValid) {
-        throw Exception(duplicateBookingMessage);
-      }
-
-      // Get the highest queue number for this schedule on this specific date
-      // We don't filter by status because even cancelled queues take up a queue number
-      final scheduleQueues = await firestore
-          .collection('queues')
-          .where('schedule_id', isEqualTo: scheduleId)
-          .where(
-            'appointment_date',
-            isEqualTo: Timestamp.fromDate(normalizedDate),
-          )
-          .orderBy('queue_number', descending: true)
-          .limit(1)
-          .get();
-
       int queueNumber = 1;
-      if (scheduleQueues.docs.isNotEmpty) {
-        final data = scheduleQueues.docs.first.data();
-        final qn = data['queue_number'];
-        if (qn is int) {
-          queueNumber = qn + 1;
-        } else if (qn is num) {
-          queueNumber = qn.toInt() + 1;
-        }
-      }
 
-      // Create new queue document
-      final docRef = await firestore.collection('queues').add({
-        'patient_id': patientId,
-        'patient_name': patientName,
-        if (patientPhone != null) 'patient_phone': patientPhone,
-        if (birthDate != null) 'birth_date': Timestamp.fromDate(birthDate),
-        if (gender != null) 'gender': gender,
-        'schedule_id': scheduleId,
-        'doctor_id': doctorId,
-        'doctor_name': doctorName,
-        'doctor_specialization': doctorSpecialization,
-        'appointment_date': Timestamp.fromDate(normalizedDate),
-        'appointment_time': appointmentTime,
-        'queue_number': queueNumber,
-        'status': 'menunggu',
-        'complaint': complaint,
-        'created_at': FieldValue.serverTimestamp(),
+      await firestore.runTransaction((transaction) async {
+        final scheduleRef = firestore.collection('schedules').doc(scheduleId);
+        final scheduleDoc = await transaction.get(scheduleRef);
+        if (!scheduleDoc.exists) {
+          throw Exception('Jadwal tidak ditemukan');
+        }
+
+        final scheduleData = scheduleDoc.data()!;
+        if (scheduleData['doctor_id'] != doctorId) {
+          throw Exception('Jadwal tidak sesuai dengan dokter yang dipilih');
+        }
+        if (scheduleData['is_active'] != true) {
+          throw Exception('Jadwal tidak aktif');
+        }
+
+        final expectedDate = scheduleData['date'] != null
+            ? _normalizeDate((scheduleData['date'] as Timestamp).toDate())
+            : normalizedDate;
+        if (expectedDate != normalizedDate) {
+          throw Exception('Tanggal antrean tidak sesuai dengan jadwal yang dipilih');
+        }
+
+        final expectedTime = _formatTimeRange(scheduleData);
+        if (expectedTime.isNotEmpty && expectedTime != appointmentTime) {
+          throw Exception('Waktu antrean tidak sesuai dengan jadwal yang dipilih');
+        }
+
+        final currentPatients =
+            (scheduleData['current_patients'] as num?)?.toInt() ?? 0;
+        final maxPatients =
+            (scheduleData['max_patients'] as num?)?.toInt() ?? 0;
+        if (currentPatients >= maxPatients) {
+          throw Exception('Kuota pada tanggal tersebut sudah penuh');
+        }
+
+        final existingPatientLock = await transaction.get(patientLockRef);
+        if (existingPatientLock.exists) {
+          throw Exception(duplicateBookingMessage);
+        }
+
+        DateTime? seqDate;
+        final sequenceDoc = await transaction.get(sequenceRef);
+        if (sequenceDoc.exists) {
+          final sequenceData = sequenceDoc.data()!;
+          final seqDateTimestamp = sequenceData['appointment_date'] as Timestamp?;
+          seqDate = seqDateTimestamp != null
+              ? _normalizeDate(seqDateTimestamp.toDate())
+              : null;
+          if (seqDate == normalizedDate) {
+            queueNumber =
+                (sequenceData['next_queue_number'] as num?)?.toInt() ?? 1;
+          } else {
+            queueNumber = 1;
+          }
+        }
+
+        transaction.set(patientLockRef, {
+          'patient_id': patientId,
+          'doctor_id': doctorId,
+          'schedule_id': scheduleId,
+          'appointment_date': Timestamp.fromDate(normalizedDate),
+          'queue_id': queueRef.id,
+          'status': 'active',
+          'created_at': FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(scheduleRef, {
+          'current_patients': currentPatients + 1,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+
+        transaction.set(sequenceRef, {
+          'schedule_id': scheduleId,
+          'appointment_date': Timestamp.fromDate(normalizedDate),
+          'next_queue_number': queueNumber + 1,
+          'status': 'active',
+          'created_at': sequenceDoc.exists && seqDate == normalizedDate
+              ? sequenceDoc.data()!['created_at'] ?? FieldValue.serverTimestamp()
+              : FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+
+        transaction.set(queueRef, {
+          'patient_id': patientId,
+          'patient_name': patientName,
+          if (patientPhone != null) 'patient_phone': patientPhone,
+          if (birthDate != null) 'birth_date': Timestamp.fromDate(birthDate),
+          if (gender != null) 'gender': gender,
+          'schedule_id': scheduleId,
+          'doctor_id': doctorId,
+          'doctor_name': doctorName,
+          'doctor_specialization': doctorSpecialization,
+          'appointment_date': Timestamp.fromDate(normalizedDate),
+          'appointment_time': appointmentTime,
+          'queue_number': queueNumber,
+          'status': 'menunggu',
+          'complaint': complaint,
+          'created_at': FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
       });
 
       return QueueEntity(
-        id: docRef.id,
+        id: queueRef.id,
         patientId: patientId,
         patientName: patientName,
         scheduleId: scheduleId,
@@ -263,10 +371,42 @@ class QueueRemoteDataSource {
   // Cancel queue (mark as cancelled). Do NOT modify a global schedule counter here.
   Future<void> cancelQueue(String queueId, String scheduleId) async {
     try {
-      // scheduleId is accepted for API compatibility but not used here.
-      await firestore.collection('queues').doc(queueId).update({
-        'status': 'cancelled_by_patient',
-        'cancelled_at': FieldValue.serverTimestamp(),
+      final queueRef = firestore.collection('queues').doc(queueId);
+      await firestore.runTransaction((transaction) async {
+        final queueDoc = await transaction.get(queueRef);
+        if (!queueDoc.exists) {
+          throw Exception('Antrean tidak ditemukan');
+        }
+
+        final queue = queueDoc.data()!;
+        if ((queue['schedule_id'] ?? '') != scheduleId) {
+          throw Exception('Jadwal antrean tidak sesuai');
+        }
+
+        final scheduleRef = firestore.collection('schedules').doc(scheduleId);
+        final scheduleDoc = await transaction.get(scheduleRef);
+        if (!scheduleDoc.exists) {
+          throw Exception('Jadwal tidak ditemukan');
+        }
+
+        final currentPatients =
+            (scheduleDoc.data()?['current_patients'] as num?)?.toInt() ?? 0;
+        final patientLockRef = _patientBookingLockRef(
+          patientId: queue['patient_id'] ?? '',
+          doctorId: queue['doctor_id'] ?? '',
+        );
+
+        transaction.update(queueRef, {
+          'status': 'cancelled_by_patient',
+          'cancelled_at': FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(scheduleRef, {
+          'current_patients': currentPatients > 0 ? currentPatients - 1 : 0,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+        transaction.delete(patientLockRef);
       });
     } catch (e) {
       throw Exception('Failed to cancel queue: $e');
@@ -309,10 +449,7 @@ class QueueRemoteDataSource {
                 : now;
             final appointmentDay = _normalizeDate(appointmentDate);
 
-            if (appointmentDay.isBefore(today)) {
-              await cancelQueue(doc.id, data['schedule_id'] ?? '');
-              continue;
-            }
+            if (appointmentDay.isBefore(today)) continue;
 
             activeQueues.add(_queueFromDoc(doc));
           }
@@ -580,25 +717,7 @@ class QueueRemoteDataSource {
     try {
       final queueRef = firestore.collection('queues').doc(queueId);
       final newScheduleRef = firestore.collection('schedules').doc(newScheduleId);
-      final newDateQueues = await firestore
-          .collection('queues')
-          .where('schedule_id', isEqualTo: newScheduleId)
-          .where(
-            'appointment_date',
-            isEqualTo: Timestamp.fromDate(normalizedNewDate),
-          )
-          .get();
-
-      final lastQueueDoc = await firestore
-          .collection('queues')
-          .where('schedule_id', isEqualTo: newScheduleId)
-          .where(
-            'appointment_date',
-            isEqualTo: Timestamp.fromDate(normalizedNewDate),
-          )
-          .orderBy('queue_number', descending: true)
-          .limit(1)
-          .get();
+      int queueNumber = 1;
 
       await firestore.runTransaction((transaction) async {
         final queueDoc = await transaction.get(queueRef);
@@ -640,23 +759,47 @@ class QueueRemoteDataSource {
         if ((newSchedule['doctor_id'] ?? '') != (queue['doctor_id'] ?? '')) {
           throw Exception('Pasien hanya dapat memilih jadwal dokter yang sama');
         }
-
-        final maxPatients = (newSchedule['max_patients'] as num?)?.toInt() ?? 0;
-        final occupied = newDateQueues.docs
-            .where((doc) => doc.id != queueId)
-            .where((doc) => _isCountedQueueStatus(doc.data()['status'] ?? ''))
-            .length;
-        if (occupied >= maxPatients) {
-          throw Exception('Kuota pada tanggal tersebut sudah penuh');
+        if (newSchedule['is_active'] != true) {
+          throw Exception('Jadwal baru tidak aktif');
         }
 
-        var queueNumber = 1;
-        if (lastQueueDoc.docs.isNotEmpty) {
-          final lastNumber =
-              (lastQueueDoc.docs.first.data()['queue_number'] as num?)
-                      ?.toInt() ??
-                  0;
-          queueNumber = lastNumber + 1;
+        final expectedDate = newSchedule['date'] != null
+            ? _normalizeDate((newSchedule['date'] as Timestamp).toDate())
+            : normalizedNewDate;
+        if (expectedDate != normalizedNewDate) {
+          throw Exception('Tanggal baru tidak sesuai dengan jadwal yang dipilih');
+        }
+
+        final expectedTime = _formatTimeRange(newSchedule);
+        if (expectedTime.isEmpty) {
+          throw Exception('Jadwal baru tidak valid');
+        }
+
+        final patientId = queue['patient_id'] ?? '';
+        final doctorId = queue['doctor_id'] ?? '';
+        final patientLockRef = _patientBookingLockRef(
+          patientId: patientId,
+          doctorId: doctorId,
+        );
+        final existingLock = await transaction.get(patientLockRef);
+        if (!existingLock.exists) {
+          throw Exception('Antrean pasien tidak ditemukan');
+        }
+
+        final newSequenceRef = _bookingSequenceRef(newScheduleId);
+
+        final sequenceDoc = await transaction.get(newSequenceRef);
+        if (sequenceDoc.exists) {
+          final sequenceData = sequenceDoc.data()!;
+          queueNumber =
+              (sequenceData['next_queue_number'] as num?)?.toInt() ?? 1;
+        }
+
+        final maxPatients = (newSchedule['max_patients'] as num?)?.toInt() ?? 0;
+        final currentPatients =
+            (newSchedule['current_patients'] as num?)?.toInt() ?? 0;
+        if (currentPatients >= maxPatients) {
+          throw Exception('Kuota pada tanggal tersebut sudah penuh');
         }
 
         if (oldScheduleDoc.exists && oldScheduleRef.path != newScheduleRef.path) {
@@ -674,10 +817,32 @@ class QueueRemoteDataSource {
           });
         }
 
+        transaction.update(patientLockRef, {
+          'patient_id': patientId,
+          'doctor_id': doctorId,
+          'schedule_id': newScheduleId,
+          'appointment_date': Timestamp.fromDate(normalizedNewDate),
+          'queue_id': queueId,
+          'status': 'active',
+          'created_at': FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+
+        transaction.set(newSequenceRef, {
+          'schedule_id': newScheduleId,
+          'appointment_date': Timestamp.fromDate(normalizedNewDate),
+          'next_queue_number': queueNumber + 1,
+          'status': 'active',
+          'created_at': sequenceDoc.exists
+              ? sequenceDoc.data()!['created_at'] ?? FieldValue.serverTimestamp()
+              : FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+
         transaction.update(queueRef, {
           'schedule_id': newScheduleId,
           'appointment_date': Timestamp.fromDate(normalizedNewDate),
-          'appointment_time': _formatTimeRange(newSchedule),
+          'appointment_time': expectedTime,
           'queue_number': queueNumber,
           'status': 'rescheduled',
           'rescheduled_from': {

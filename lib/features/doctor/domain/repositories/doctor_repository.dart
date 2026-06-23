@@ -6,6 +6,12 @@ abstract class DoctorRepository {
   Stream<List<QueueEntity>> getTodayQueues(String doctorId);
   Stream<List<QueueEntity>> getCompletedQueues(String doctorId, DateTime date);
   Future<void> callNextPatient(String doctorId);
+  Future<void> completeCurrentPatient(String doctorId);
   Future<void> skipCurrentPatient(String doctorId);
+  Future<int> cancelDoctorSession(
+    String doctorId,
+    DateTime date,
+    String reason,
+  );
   // Tambahkan method lain sesuai kebutuhan
 }

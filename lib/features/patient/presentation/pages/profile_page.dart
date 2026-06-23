@@ -104,8 +104,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _logout() async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Keluar',
@@ -114,14 +116,14 @@ class _ProfilePageState extends State<ProfilePage> {
         content: const Text('Apakah Anda yakin ingin keluar?'),
         actions: [
           TextButton(
-            onPressed: () => Get.back(result: false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(
               'Batal',
               style: TextStyle(color: Colors.grey[600]),
             ),
           ),
           ElevatedButton(
-            onPressed: () => Get.back(result: true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
             ),
@@ -136,6 +138,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (confirmed == true) {
       await FirebaseAuth.instance.signOut();
+      await Future.delayed(const Duration(milliseconds: 150));
       Get.offAllNamed(AppRoutes.roleSelection);
     }
   }

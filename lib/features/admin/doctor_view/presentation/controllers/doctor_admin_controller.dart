@@ -6,6 +6,8 @@ import 'package:antrean_online/features/admin/doctor_view/presentation/widgets/a
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:antrean_online/core/utils/app_snackbar.dart';
+import 'package:antrean_online/features/auth/presentation/controllers/auth_controller.dart';
 import '../../domain/usecases/get_all_doctors.dart';
 import '../../domain/usecases/get_doctor_by_id.dart';
 import '../../domain/usecases/add_doctor.dart';
@@ -41,6 +43,10 @@ class DoctorAdminController extends GetxController {
   final RxString _selectedSpecialization = ''.obs;
   final RxBool _isFormValid = false.obs;
   final Rxn<DoctorAdminEntity> _currentDoctor = Rxn<DoctorAdminEntity>();
+  Worker? _authUserWorker;
+  Worker? _authReadyWorker;
+  AuthController? _authController;
+  bool _hasAdminAccess = false;
 
   // Getters
   List<DoctorAdminEntity> get doctors => _doctors.toList();
@@ -64,8 +70,7 @@ class DoctorAdminController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadDoctors();
-    loadSpecializations();
+    _bindAuthState();
 
   // Listen to search changes
     searchController.addListener(() {
@@ -89,11 +94,65 @@ class DoctorAdminController extends GetxController {
     phoneController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    _authUserWorker?.dispose();
+    _authReadyWorker?.dispose();
     super.onClose();
+  }
+
+  bool _canAccessAdminData() {
+    final auth = _authController ??
+        (Get.isRegistered<AuthController>()
+            ? Get.find<AuthController>()
+            : null);
+    final user = auth?.currentUser.value;
+    return auth?.isSessionReady.value == true && user?.role == 'admin';
+  }
+
+  void _bindAuthState() {
+    if (!Get.isRegistered<AuthController>()) {
+      return;
+    }
+
+    _authController = Get.find<AuthController>();
+    _authUserWorker?.dispose();
+    _authReadyWorker?.dispose();
+
+    _authUserWorker = ever(_authController!.currentUser, (_) {
+      _syncAdminAccess();
+    });
+
+    _authReadyWorker = ever(_authController!.isSessionReady, (_) {
+      _syncAdminAccess();
+    });
+
+    _syncAdminAccess();
+  }
+
+  void _syncAdminAccess() {
+    final canAccess = _canAccessAdminData();
+    if (canAccess == _hasAdminAccess) {
+      return;
+    }
+
+    _hasAdminAccess = canAccess;
+
+    if (!canAccess) {
+      _doctors.clear();
+      _filteredDoctors.clear();
+      _specializations.clear();
+      return;
+    }
+
+    loadDoctors();
+    loadSpecializations();
   }
 
   // Load all doctors
   Future<void> loadDoctors() async {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     try {
       _isLoading.value = true;
       update();
@@ -111,6 +170,10 @@ class DoctorAdminController extends GetxController {
 
   // Load specializations
   Future<void> loadSpecializations() async {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     try {
       final result = await getSpecializations();
       _specializations.value = result;
@@ -122,6 +185,10 @@ class DoctorAdminController extends GetxController {
 
   // Search doctors
   Future<void> performSearch(String query) async {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     if (query.isEmpty) {
       _filteredDoctors.value = _doctors;
       update();
@@ -187,8 +254,39 @@ class DoctorAdminController extends GetxController {
     update();
   }
 
+  bool _isIdentificationNumberUsed(
+    String nomorIdentifikasi, {
+    String? excludeDoctorId,
+  }) {
+    return _doctors.any(
+      (doctor) =>
+          doctor.id != excludeDoctorId &&
+          doctor.nomorIdentifikasi.trim() == nomorIdentifikasi.trim(),
+    );
+  }
+
+  bool _isPhoneNumberUsed(
+    String nomorTelepon, {
+    String? excludeDoctorId,
+  }) {
+    return _doctors.any(
+      (doctor) =>
+          doctor.id != excludeDoctorId &&
+          doctor.nomorTelepon.trim() == nomorTelepon.trim(),
+    );
+  }
+
+  bool _isEmailUsed(String email, {String? excludeDoctorId}) {
+    final normalizedEmail = email.trim().toLowerCase();
+    return _doctors.any(
+      (doctor) =>
+          doctor.id != excludeDoctorId &&
+          doctor.email.trim().toLowerCase() == normalizedEmail,
+    );
+  }
+
   // Add new doctor dengan validasi lengkap
-  Future<void> addNewDoctor() async {
+  Future<void> addNewDoctor(BuildContext context) async {
     if (!_isFormValid.value) return;
 
     try {
@@ -203,25 +301,30 @@ class DoctorAdminController extends GetxController {
       }
 
       // VALIDASI 2: Cek nomor identifikasi sudah ada atau belum
-      final identificationExists = await Get.find<DoctorAdminRepository>()
-          .isIdentificationNumberExists(identificationController.text.trim());
+      if (_doctors.isEmpty) {
+        _showError(
+          'Data dokter belum dimuat. Silakan muat ulang halaman sebelum menambahkan dokter.',
+        );
+        return;
+      }
+
+      final identificationExists = _isIdentificationNumberUsed(
+        identificationController.text.trim(),
+      );
       if (identificationExists) {
         _showError('Nomor identifikasi sudah digunakan oleh dokter lain');
         return;
       }
 
       // VALIDASI 3: Cek nomor telepon sudah ada atau belum
-      final phoneExists = await Get.find<DoctorAdminRepository>()
-          .isPhoneNumberExists(phoneController.text.trim());
+      final phoneExists = _isPhoneNumberUsed(phoneController.text.trim());
       if (phoneExists) {
         _showError('Nomor telepon sudah digunakan oleh dokter lain');
         return;
       }
 
       // VALIDASI 4: Cek email sudah ada atau belum
-      final emailExists = await Get.find<DoctorAdminRepository>().isEmailExists(
-        email,
-      );
+      final emailExists = _isEmailUsed(email);
       if (emailExists) {
         _showError('Email sudah digunakan oleh dokter lain');
         return;
@@ -242,8 +345,10 @@ class DoctorAdminController extends GetxController {
       // Simpan dengan password
       await addDoctor(doctor, passwordController.text.trim());
       _clearForm();
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
       await loadDoctors(); // Refresh list
-      Get.back(); // Close form dialog
 
       _showSuccess('Dokter berhasil ditambahkan ke sistem');
     } catch (e) {
@@ -256,7 +361,7 @@ class DoctorAdminController extends GetxController {
   }
 
   // Update existing doctor dengan validasi lengkap
-  Future<void> updateExistingDoctor(String id) async {
+  Future<void> updateExistingDoctor(String id, BuildContext context) async {
     if (!_isFormValid.value || _currentDoctor.value == null) return;
 
     try {
@@ -271,32 +376,27 @@ class DoctorAdminController extends GetxController {
       }
 
       // VALIDASI 2: Cek nomor identifikasi sudah ada atau belum (exclude current doctor)
-      final identificationExists = await Get.find<DoctorAdminRepository>()
-          .isIdentificationNumberExists(
-            identificationController.text.trim(),
-            excludeDoctorId: id,
-          );
+      final identificationExists = _isIdentificationNumberUsed(
+        identificationController.text.trim(),
+        excludeDoctorId: id,
+      );
       if (identificationExists) {
         _showError('Nomor identifikasi sudah digunakan oleh dokter lain');
         return;
       }
 
       // VALIDASI 3: Cek nomor telepon sudah ada atau belum (exclude current doctor)
-      final phoneExists = await Get.find<DoctorAdminRepository>()
-          .isPhoneNumberExists(
-            phoneController.text.trim(),
-            excludeDoctorId: id,
-          );
+      final phoneExists = _isPhoneNumberUsed(
+        phoneController.text.trim(),
+        excludeDoctorId: id,
+      );
       if (phoneExists) {
         _showError('Nomor telepon sudah digunakan oleh dokter lain');
         return;
       }
 
       // VALIDASI 4: Cek email sudah ada atau belum (exclude current doctor)
-      final emailExists = await Get.find<DoctorAdminRepository>().isEmailExists(
-        email,
-        excludeDoctorId: id,
-      );
+      final emailExists = _isEmailUsed(email, excludeDoctorId: id);
       if (emailExists) {
         _showError('Email sudah digunakan oleh dokter lain');
         return;
@@ -313,8 +413,10 @@ class DoctorAdminController extends GetxController {
 
       await updateDoctor(id, doctor);
       _clearForm();
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
       await loadDoctors(); // Refresh list
-      Get.back(); // Close form dialog
 
       _showSuccess('Data dokter berhasil diperbarui');
     } catch (e) {
@@ -326,7 +428,7 @@ class DoctorAdminController extends GetxController {
   }
 
   // Delete doctor
-  Future<void> removeDoctor(String id, String name) async {
+  Future<void> removeDoctor(String id, String name, BuildContext context) async {
     // Hitung jumlah jadwal yang terkait
     int scheduleCount = 0;
     int queueCount = 0;
@@ -378,143 +480,149 @@ class DoctorAdminController extends GetxController {
       // Lanjutkan dengan nilai default jika gagal menghitung
     }
 
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+    if (!context.mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 24,
+                ),
               ),
-              child: const Icon(
-                Icons.warning_amber_rounded,
-                color: Color(0xFFEF4444),
-                size: 24,
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Hapus Data Dokter?',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Hapus Data Dokter?',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Anda akan menghapus data dokter:',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Anda akan menghapus data dokter:',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.person, color: Color(0xFF3B82F6)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _formatDoctorName(name),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFECACA)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Color(0xFFEF4444),
-                        size: 18,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'PERHATIAN!',
-                        style: TextStyle(
-                          color: Color(0xFFEF4444),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.person, color: Color(0xFF3B82F6)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _formatDoctorName(name),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontSize: 15,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Data berikut juga akan dihapus:',
-                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                  ),
-                  const SizedBox(height: 6),
-                  _buildDeleteInfoRow(
-                    Icons.calendar_today,
-                    '$scheduleCount jadwal praktek',
-                  ),
-                  const SizedBox(height: 4),
-                  _buildDeleteInfoRow(Icons.people, '$queueCount data antrean'),
-                  const SizedBox(height: 4),
-                  _buildDeleteInfoRow(
-                    Icons.account_circle,
-                    'Akun login dokter',
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tindakan ini tidak dapat dibatalkan!',
-                    style: TextStyle(
-                      color: Colors.red[700],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Color(0xFFEF4444),
+                          size: 18,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'PERHATIAN!',
+                          style: TextStyle(
+                            color: Color(0xFFEF4444),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Data berikut juga akan dihapus:',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    ),
+                    const SizedBox(height: 6),
+                    _buildDeleteInfoRow(
+                      Icons.calendar_today,
+                      '$scheduleCount jadwal praktek',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildDeleteInfoRow(Icons.people, '$queueCount data antrean'),
+                    const SizedBox(height: 4),
+                    _buildDeleteInfoRow(
+                      Icons.account_circle,
+                      'Akun login dokter',
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tindakan ini tidak dapat dibatalkan!',
+                      style: TextStyle(
+                        color: Colors.red[700],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Hapus Permanen',
+                style: TextStyle(color: Colors.white),
               ),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Hapus Permanen',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -546,6 +654,10 @@ class DoctorAdminController extends GetxController {
 
   // Load doctor data for editing
   Future<void> loadDoctorForEdit(String id) async {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     try {
       _isLoading.value = true;
       final doctor = await getDoctorById(id);
@@ -628,44 +740,38 @@ class DoctorAdminController extends GetxController {
 
   // Show error message
   void _showError(String message) {
-    Get.snackbar(
-      'Error',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: const Color(0xFFEF4444),
-      colorText: Colors.white,
-      borderRadius: 12,
-    );
+    AppSnackbar.show(title: 'Error', message: message, isError: true);
   }
 
   // Show success message
   void _showSuccess(String message) {
-    Get.snackbar(
-      'Berhasil',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: const Color(0xFF10B981),
-      colorText: Colors.white,
-      borderRadius: 12,
-    );
+    AppSnackbar.show(title: 'Berhasil', message: message);
   }
 
+
+
   // Show add doctor dialog
-  void showAddDoctorDialog() {
+  void showAddDoctorDialog(BuildContext context) {
     _clearForm();
-    Get.dialog(
-      const AddEditDoctorDialog(isEditing: false),
+    showDialog(
+      context: context,
       barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return const AddEditDoctorDialog(isEditing: false);
+      },
     );
   }
 
   // Show edit doctor dialog
-  void showEditDoctorDialog(DoctorAdminEntity doctor) {
+  void showEditDoctorDialog(DoctorAdminEntity doctor, BuildContext context) {
     _currentDoctor.value = doctor;
     _populateForm(doctor);
-    Get.dialog(
-      const AddEditDoctorDialog(isEditing: true),
+    showDialog(
+      context: context,
       barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return const AddEditDoctorDialog(isEditing: true);
+      },
     );
   }
 

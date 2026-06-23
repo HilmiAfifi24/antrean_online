@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class CurrentQueueCard extends StatelessWidget {
-  const CurrentQueueCard({super.key});
+  final String doctorId;
+
+  const CurrentQueueCard({
+    super.key,
+    required this.doctorId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
+    if (doctorId.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('queues')
-          .where('doctor_id', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+          .where('doctor_id', isEqualTo: doctorId)
           .where('status', isEqualTo: 'dipanggil')
           .limit(1)
           .snapshots(),
@@ -18,7 +26,7 @@ class CurrentQueueCard extends StatelessWidget {
         if (snapshot.hasError) {
           // Log error for diagnostics (missing composite index etc.)
           // ignore: avoid_print
-          print('[CurrentQueueCard] snapshot error: ${snapshot.error}');
+          debugPrint('[CurrentQueueCard] snapshot error: ${snapshot.error}');
           return const SizedBox.shrink();
         }
 
@@ -73,7 +81,7 @@ class CurrentQueueCard extends StatelessWidget {
               if (hasCurrentQueue) ...[
                 Builder(
                   builder: (context) {
-                    final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                    final data = snapshot.data!.docs.first.data();
                     final queueNumber = data['queue_number'] ?? 0;
                     final patientName = data['patient_name'] ?? '';
                     return Column(

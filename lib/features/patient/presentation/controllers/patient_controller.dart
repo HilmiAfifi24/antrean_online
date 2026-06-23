@@ -137,7 +137,8 @@ class PatientController extends GetxController {
         }
       }
     } catch (e) {
-      // Silent fail
+      _patientName.value = _fallbackPatientName(FirebaseAuth.instance.currentUser);
+      debugPrint('Failed to check patient profile name: $e');
     }
   }
 
@@ -314,24 +315,15 @@ class PatientController extends GetxController {
           if (data?['name'] != null && data!['name'].toString().isNotEmpty) {
             _patientName.value = data['name'];
           } else {
-            // Fallback: Extract name from email (before @)
-            final email = user.email ?? '';
-            if (email.isNotEmpty) {
-              final username = email.split('@').first;
-              // Capitalize first letter
-              _patientName.value = username.isNotEmpty
-                  ? username[0].toUpperCase() + username.substring(1)
-                  : 'Pasien';
-            } else {
-              _patientName.value = 'Pasien';
-            }
+            _patientName.value = _fallbackPatientName(user);
           }
         } else {
-          _patientName.value = 'Pasien';
+          _patientName.value = _fallbackPatientName(user);
         }
       }
     } catch (e) {
-      _patientName.value = 'Pasien';
+      _patientName.value = _fallbackPatientName(FirebaseAuth.instance.currentUser);
+      debugPrint('Failed to load patient name: $e');
     }
   }
 
@@ -362,6 +354,17 @@ class PatientController extends GetxController {
     } else {
       _isLoading.value = false;
     }
+  }
+
+  String _fallbackPatientName(User? user) {
+    final email = user?.email ?? '';
+    if (email.isNotEmpty) {
+      final username = email.split('@').first;
+      if (username.isNotEmpty) {
+        return username[0].toUpperCase() + username.substring(1);
+      }
+    }
+    return 'Pasien';
   }
 
   // Load all schedules

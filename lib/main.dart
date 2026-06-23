@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:antrean_online/core/routes/app_pages.dart';
+import 'package:antrean_online/core/utils/app_snackbar.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,8 +24,10 @@ void main() async {
   
   // Initialize Firebase App Check
   await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.playIntegrity,
-    appleProvider: AppleProvider.appAttest,
+    androidProvider:
+        kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+    appleProvider:
+        kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
   );
   
   // Initialize SharedPreferences before app starts
@@ -47,6 +51,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'Antrean Online - Klinik PENS',
+      scaffoldMessengerKey: AppSnackbar.messengerKey,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         fontFamily: 'Inter',

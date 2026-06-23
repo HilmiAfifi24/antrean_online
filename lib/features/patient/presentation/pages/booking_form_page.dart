@@ -184,7 +184,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
                             _buildScheduleCard(schedule),
                             const SizedBox(height: 24),
                             // Profile Info (readonly)
-                            if (userName != null && userPhone != null) ...[
+                            if (userName != null) ...[
                               _buildReadonlyField(
                                 label: 'Nama',
                                 initialValue: userName!,
@@ -192,7 +192,10 @@ class _BookingFormPageState extends State<BookingFormPage> {
                               const SizedBox(height: 12),
                               _buildReadonlyField(
                                 label: 'No. HP',
-                                initialValue: userPhone!,
+                                initialValue: (userPhone == null ||
+                                        userPhone!.trim().isEmpty)
+                                    ? '-'
+                                    : userPhone!,
                               ),
                               const SizedBox(height: 16),
                             ],
@@ -529,17 +532,49 @@ class _BookingFormPageState extends State<BookingFormPage> {
             .collection('users')
             .doc(user.uid)
             .get();
+        if (!mounted) return;
         if (userDoc.exists) {
           final data = userDoc.data();
           setState(() {
-            userName = data?['name'] ?? '';
-            userPhone = data?['phone'] ?? '';
+            final name = data?['name']?.toString().trim();
+            final phone = data?['phone']?.toString().trim();
+            userName = (name != null && name.isNotEmpty)
+                ? name
+                : _fallbackDisplayName(user);
+            userPhone = (phone != null && phone.isNotEmpty) ? phone : '-';
+          });
+        } else {
+          setState(() {
+            userName = _fallbackDisplayName(user);
+            userPhone = '-';
           });
         }
+      } else if (mounted) {
+        setState(() {
+          userName = 'Pasien';
+          userPhone = '-';
+        });
       }
     } catch (e) {
-      // Silent fail
+      final user = FirebaseAuth.instance.currentUser;
+      if (!mounted) return;
+      setState(() {
+        userName = _fallbackDisplayName(user);
+        userPhone = '-';
+      });
+      debugPrint('Failed to load booking profile: $e');
     }
+  }
+
+  String _fallbackDisplayName(User? user) {
+    final email = user?.email ?? '';
+    if (email.isNotEmpty) {
+      final username = email.split('@').first;
+      if (username.isNotEmpty) {
+        return username[0].toUpperCase() + username.substring(1);
+      }
+    }
+    return 'Pasien';
   }
 
   Future<void> _submitBooking(ScheduleEntity schedule) async {
@@ -555,11 +590,6 @@ class _BookingFormPageState extends State<BookingFormPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw Exception('User tidak terautentikasi');
-      }
-
-      // Check if schedule is full
-      if (schedule.isFull) {
-        throw Exception('Maaf, jadwal dokter sudah penuh');
       }
 
       if (!Get.isRegistered<QueueController>()) {

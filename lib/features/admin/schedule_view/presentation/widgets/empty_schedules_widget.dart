@@ -198,7 +198,7 @@ class EmptySchedulesWidget extends StatelessWidget {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: controller.showAddScheduleDialog,
+                        onTap: () => controller.showAddScheduleDialog(context),
                         borderRadius: BorderRadius.circular(14),
                         child: const Padding(
                           padding: EdgeInsets.symmetric(

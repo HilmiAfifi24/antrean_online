@@ -49,7 +49,7 @@ class AddEditDoctorDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Get.back(),
+                    onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close_rounded, color: Colors.white),
                   ),
                 ],
@@ -176,7 +176,7 @@ class AddEditDoctorDialog extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Get.back(),
+                      onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF64748B),
                         side: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -197,9 +197,10 @@ class AddEditDoctorDialog extends StatelessWidget {
                                 if (isEditing) {
                                   controller.updateExistingDoctor(
                                     controller.currentDoctor!.id,
+                                    context,
                                   );
                                 } else {
-                                  controller.addNewDoctor();
+                                  controller.addNewDoctor(context);
                                 }
                               }
                             : null,

@@ -58,7 +58,11 @@ class DoctorHomePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Current Queue Card
-                            const CurrentQueueCard(),
+                            Obx(
+                              () => CurrentQueueCard(
+                                doctorId: controller.doctorId,
+                              ),
+                            ),
                             const SizedBox(height: 20),
 
                             // Action Buttons
@@ -123,7 +127,7 @@ class DoctorHomePage extends StatelessWidget {
                                     TextButton.icon(
                                       onPressed: () {
                                         Get.toNamed(
-                                          '/doctor/history',
+                                          AppRoutes.doctorHistory,
                                           arguments: {'date': controller.selectedDate.toIso8601String()},
                                         );
                                       },
@@ -224,8 +228,9 @@ class DoctorHomePage extends StatelessWidget {
                   if (value == 'profile') {
                     _showProfileDialog(context, controller);
                   } else if (value == 'logout') {
-                    Get.dialog(
-                      AlertDialog(
+                    showDialog<void>(
+                      context: context,
+                      builder: (BuildContext dialogContext) => AlertDialog(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -236,12 +241,13 @@ class DoctorHomePage extends StatelessWidget {
                         content: const Text('Apakah Anda yakin ingin keluar?'),
                         actions: [
                           TextButton(
-                            onPressed: () => Get.back(),
+                            onPressed: () => Navigator.of(dialogContext).pop(),
                             child: const Text('Batal'),
                           ),
                           ElevatedButton(
-                            onPressed: () {
-                              Get.back();
+                            onPressed: () async {
+                              Navigator.of(dialogContext).pop();
+                              await Future.delayed(const Duration(milliseconds: 150));
                               controller.logout();
                             },
                             style: ElevatedButton.styleFrom(

@@ -12,6 +12,42 @@ class ScheduleChangeRequestDatasource {
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
+  String _buildLockId(String doctorId, String scheduleId) {
+    return '${doctorId}_$scheduleId';
+  }
+
+  DocumentReference<Map<String, dynamic>> _lockRef(String lockId) {
+    return _firestore
+        .collection('schedule_change_request_locks')
+        .doc(lockId);
+  }
+
+
+  List<String> _normalizeDays(List<dynamic> rawDays) {
+    return rawDays
+        .whereType<String>()
+        .map((day) => day.trim())
+        .where((day) => day.isNotEmpty)
+        .toList();
+  }
+
+  Future<bool> _hasActiveQueuesForSchedule(String scheduleId) async {
+    final snapshot = await _firestore
+        .collection('queues')
+        .where('schedule_id', isEqualTo: scheduleId)
+        .where('status', whereIn: [
+          'menunggu',
+          'waiting',
+          'dipanggil',
+          'ongoing',
+          'rescheduled',
+        ])
+        .limit(1)
+        .get();
+
+    return snapshot.docs.isNotEmpty;
+  }
+
   // ─── DOKTER: Submit request ────────────────────────────────────────────────
 
   Future<void> submitScheduleChangeRequest({
@@ -40,6 +76,23 @@ class ScheduleChangeRequestDatasource {
       throw Exception('Anda hanya dapat mengajukan perubahan untuk jadwal milik sendiri');
     }
 
+    final existingDays = _normalizeDays(oldScheduleData['days_of_week'] ?? []);
+    final selectedOldDay = oldDay.trim();
+    if (selectedOldDay.isEmpty || !existingDays.contains(selectedOldDay)) {
+      throw Exception('Hari yang dipilih tidak tersedia pada jadwal ini');
+    }
+
+    final conflict = await validateScheduleConflict(
+      doctorId: user.uid,
+      oldScheduleId: oldScheduleId,
+      newDay: newDay.trim(),
+      newStartTime: newStartTime,
+      newEndTime: newEndTime,
+    );
+    if (conflict != null) {
+      throw Exception(conflict);
+    }
+
     String doctorName = '';
     String doctorPhone = '';
     final doctorDoc = await _firestore.collection('doctors').where('user_id', isEqualTo: user.uid).limit(1).get();
@@ -49,37 +102,60 @@ class ScheduleChangeRequestDatasource {
       doctorPhone = data['nomor_telepon'] ?? '';
     }
 
-    // Cek apakah sudah ada request pending untuk jadwal yang sama
-    final existingQuery = await _firestore
-        .collection('schedule_change_requests')
-        .where('doctor_id', isEqualTo: user.uid)
-        .where('old_schedule_id', isEqualTo: oldScheduleId)
-        .where('status', isEqualTo: 'pending')
-        .get();
+    final lockId = _buildLockId(user.uid, oldScheduleId);
+    final lockRef = _lockRef(lockId);
+    final requestRef = _firestore.collection('schedule_change_requests').doc();
 
-    if (existingQuery.docs.isNotEmpty) {
-      throw Exception(
-        'Anda sudah memiliki permintaan perubahan yang sedang menunggu untuk jadwal ini',
-      );
-    }
 
-    await _firestore.collection('schedule_change_requests').add({
-      'doctor_id': user.uid,
-      'doctor_name': doctorName,
-      'doctor_phone': doctorPhone,
-      'old_schedule_id': oldScheduleId,
-      'old_day': oldDay,
-      'old_start_time': oldStartTime,
-      'old_end_time': oldEndTime,
-      'new_day': newDay,
-      'new_start_time': newStartTime,
-      'new_end_time': newEndTime,
-      'reason': reason,
-      'status': 'pending',
-      'admin_approver_id': null,
-      'rejection_reason': null,
-      'created_at': FieldValue.serverTimestamp(),
-      'approved_at': null,
+    await _firestore.runTransaction((tx) async {
+      final latestSchedule = await tx.get(oldScheduleDoc.reference);
+      if (!latestSchedule.exists) {
+        throw Exception('Jadwal yang dipilih tidak ditemukan');
+      }
+
+      final latestScheduleData = latestSchedule.data()!;
+      if (latestScheduleData['doctor_id'] != user.uid) {
+        throw Exception('Anda hanya dapat mengajukan perubahan untuk jadwal milik sendiri');
+      }
+      if (latestScheduleData['is_active'] == false) {
+        throw Exception('Jadwal yang dipilih sedang tidak aktif');
+      }
+
+      final lockSnapshot = await tx.get(lockRef);
+      if (lockSnapshot.exists) {
+        throw Exception(
+          'Anda sudah memiliki permintaan perubahan yang sedang menunggu untuk jadwal ini',
+        );
+      }
+
+      tx.set(lockRef, {
+        'doctor_id': user.uid,
+        'schedule_id': oldScheduleId,
+        'request_id': requestRef.id,
+        'status': 'pending',
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+
+      tx.set(requestRef, {
+        'doctor_id': user.uid,
+        'doctor_name': doctorName,
+        'doctor_phone': doctorPhone,
+        'old_schedule_id': oldScheduleId,
+        'old_day': selectedOldDay,
+        'old_start_time': oldStartTime,
+        'old_end_time': oldEndTime,
+        'new_day': newDay.trim(),
+        'new_start_time': newStartTime,
+        'new_end_time': newEndTime,
+        'reason': reason,
+        'status': 'pending',
+        'lock_id': lockId,
+        'admin_approver_id': null,
+        'rejection_reason': null,
+        'created_at': FieldValue.serverTimestamp(),
+        'approved_at': null,
+      });
     });
   }
 
@@ -220,7 +296,6 @@ class ScheduleChangeRequestDatasource {
     required String requestId,
     required String adminId,
   }) async {
-    // Ambil request
     final requestDoc = await _firestore
         .collection('schedule_change_requests')
         .doc(requestId)
@@ -228,14 +303,11 @@ class ScheduleChangeRequestDatasource {
     if (!requestDoc.exists) throw Exception('Request tidak ditemukan');
 
     final request = ScheduleChangeRequestEntity.fromFirestore(requestDoc);
-    final oldScheduleDoc = await _firestore
-        .collection('schedules')
-        .doc(request.oldScheduleId)
-        .get();
-    if (!oldScheduleDoc.exists) throw Exception('Jadwal lama tidak ditemukan');
-    final oldScheduleData = oldScheduleDoc.data()!;
-    if (oldScheduleData['doctor_id'] != request.doctorId) {
-      throw Exception('Request tidak valid untuk dokter ini');
+
+    if (await _hasActiveQueuesForSchedule(request.oldScheduleId)) {
+      throw Exception(
+        'Jadwal ini masih memiliki antrean aktif. Selesaikan atau pindahkan antrean terlebih dahulu sebelum menyetujui perubahan.',
+      );
     }
 
     // Validasi konflik sebelum approve
@@ -249,49 +321,104 @@ class ScheduleChangeRequestDatasource {
 
     if (conflict != null) throw Exception(conflict);
 
-    final batch = _firestore.batch();
+    final requestData = requestDoc.data() as Map<String, dynamic>;
+    final lockId = (requestData['lock_id'] as String?) ??
+        _buildLockId(request.doctorId, request.oldScheduleId);
+    final lockRef = _lockRef(lockId);
+    final oldScheduleRef =
+        _firestore.collection('schedules').doc(request.oldScheduleId);
+    final notificationRef = _firestore.collection('doctor_notifications').doc();
 
-    // 1. Nonaktifkan jadwal lama
-    batch.update(
-      _firestore.collection('schedules').doc(request.oldScheduleId),
-      {'is_active': false, 'updated_at': FieldValue.serverTimestamp()},
-    );
+    await _firestore.runTransaction((tx) async {
+      // 1. Perform all reads first
+      final latestRequest = await tx.get(requestDoc.reference);
+      final latestLock = await tx.get(lockRef);
+      final oldScheduleDoc = await tx.get(oldScheduleRef);
 
-    // 2. Buat jadwal baru
-    final newScheduleRef = _firestore.collection('schedules').doc();
-    batch.set(newScheduleRef, {
-      ...oldScheduleData,
-      'days_of_week': [request.newDay],
-      'start_time': request.newStartTime,
-      'end_time': request.newEndTime,
-      'is_active': true,
-      'created_at': FieldValue.serverTimestamp(),
-      'updated_at': FieldValue.serverTimestamp(),
-      'source_request_id': requestId,
-    });
+      // 2. Perform validations
+      if (!latestRequest.exists) {
+        throw Exception('Request tidak ditemukan');
+      }
+      final latestRequestData = latestRequest.data() as Map<String, dynamic>;
+      if (latestRequestData['status'] != 'pending') {
+        throw Exception('Request sudah diproses');
+      }
 
-    // 3. Update status request
-    batch.update(
-      _firestore.collection('schedule_change_requests').doc(requestId),
-      {
+      if (!oldScheduleDoc.exists) {
+        throw Exception('Jadwal lama tidak ditemukan');
+      }
+
+      final oldScheduleData = oldScheduleDoc.data()!;
+      if (oldScheduleData['doctor_id'] != request.doctorId) {
+        throw Exception('Request tidak valid untuk dokter ini');
+      }
+
+      final oldDays = _normalizeDays(oldScheduleData['days_of_week'] ?? []);
+      if (!oldDays.contains(request.oldDay)) {
+        throw Exception('Hari jadwal yang diminta tidak tersedia pada jadwal lama');
+      }
+
+      // 3. Perform all writes
+      final remainingDays =
+          oldDays.where((day) => day != request.oldDay).toList();
+
+      final newScheduleRef = _firestore.collection('schedules').doc();
+
+      if (remainingDays.isEmpty) {
+        tx.update(oldScheduleRef, {
+          'days_of_week': remainingDays,
+          'is_active': false,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+      } else {
+        tx.update(oldScheduleRef, {
+          'days_of_week': remainingDays,
+          'is_active': true,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+      }
+
+      tx.set(newScheduleRef, {
+        ...oldScheduleData,
+        'days_of_week': [request.newDay],
+        'start_time': request.newStartTime,
+        'end_time': request.newEndTime,
+        'is_active': true,
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'source_request_id': requestId,
+        'split_from_schedule_id': request.oldScheduleId,
+        'split_from_day': request.oldDay,
+      });
+
+      tx.update(requestDoc.reference, {
         'status': 'approved',
         'admin_approver_id': adminId,
         'approved_at': FieldValue.serverTimestamp(),
+        'rejected_at': null,
         'new_schedule_id': newScheduleRef.id,
-      },
-    );
+        'lock_id': lockId,
+      });
 
-    await batch.commit();
+      if (latestLock.exists) {
+        final latestLockData = latestLock.data() as Map<String, dynamic>;
+        if (latestLockData['status'] == 'pending' &&
+            latestLockData['request_id'] == requestId) {
+          tx.delete(lockRef);
+        }
+      }
 
-    // 4. Kirim notifikasi in-app ke dokter
-    await _sendInAppNotification(
-      doctorId: request.doctorId,
-      title: 'Perubahan Jadwal Disetujui ✅',
-      body:
-          'Permintaan perubahan jadwal Anda dari ${request.oldDay} (${request.oldStartTime}–${request.oldEndTime}) ke ${request.newDay} (${request.newStartTime}–${request.newEndTime}) telah disetujui.',
-      type: 'schedule_change_approved',
-      requestId: requestId,
-    );
+      tx.set(notificationRef, {
+        'doctor_id': request.doctorId,
+        'title': 'Perubahan Jadwal Disetujui ✅',
+        'body':
+            'Permintaan perubahan jadwal hari ${request.oldDay} (${request.oldStartTime}–${request.oldEndTime}) ke ${request.newDay} (${request.newStartTime}–${request.newEndTime}) telah disetujui.',
+        'type': 'schedule_change_approved',
+        'request_id': requestId,
+        'is_read': false,
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   // ─── ADMIN: Reject request ─────────────────────────────────────────────────
@@ -308,45 +435,53 @@ class ScheduleChangeRequestDatasource {
     if (!requestDoc.exists) throw Exception('Request tidak ditemukan');
 
     final request = ScheduleChangeRequestEntity.fromFirestore(requestDoc);
+    final requestData = requestDoc.data() as Map<String, dynamic>;
+    final lockId = (requestData['lock_id'] as String?) ??
+        _buildLockId(request.doctorId, request.oldScheduleId);
+    final lockRef = _lockRef(lockId);
+    final notificationRef = _firestore.collection('doctor_notifications').doc();
 
-    await _firestore
-        .collection('schedule_change_requests')
-        .doc(requestId)
-        .update({
-      'status': 'rejected',
-      'admin_approver_id': adminId,
-      'rejection_reason': rejectionReason,
-      'approved_at': FieldValue.serverTimestamp(),
-    });
+    await _firestore.runTransaction((tx) async {
+      // 1. Perform all reads first
+      final latestRequest = await tx.get(requestDoc.reference);
+      final latestLock = await tx.get(lockRef);
 
-    // Kirim notifikasi in-app ke dokter
-    await _sendInAppNotification(
-      doctorId: request.doctorId,
-      title: 'Perubahan Jadwal Ditolak ❌',
-      body:
-          'Permintaan perubahan jadwal Anda ditolak. Alasan: $rejectionReason',
-      type: 'schedule_change_rejected',
-      requestId: requestId,
-    );
-  }
+      // 2. Perform validations
+      if (!latestRequest.exists) {
+        throw Exception('Request tidak ditemukan');
+      }
+      final latestRequestData = latestRequest.data() as Map<String, dynamic>;
+      if (latestRequestData['status'] != 'pending') {
+        throw Exception('Request sudah diproses');
+      }
 
-  // ─── Helper: simpan notifikasi in-app ke Firestore ────────────────────────
+      // 3. Perform all writes
+      tx.update(requestDoc.reference, {
+        'status': 'rejected',
+        'admin_approver_id': adminId,
+        'rejection_reason': rejectionReason,
+        'rejected_at': FieldValue.serverTimestamp(),
+        'approved_at': null,
+      });
 
-  Future<void> _sendInAppNotification({
-    required String doctorId,
-    required String title,
-    required String body,
-    required String type,
-    required String requestId,
-  }) async {
-    await _firestore.collection('doctor_notifications').add({
-      'doctor_id': doctorId,
-      'title': title,
-      'body': body,
-      'type': type,
-      'request_id': requestId,
-      'is_read': false,
-      'created_at': FieldValue.serverTimestamp(),
+      if (latestLock.exists) {
+        final latestLockData = latestLock.data() as Map<String, dynamic>;
+        if (latestLockData['status'] == 'pending' &&
+            latestLockData['request_id'] == requestId) {
+          tx.delete(lockRef);
+        }
+      }
+
+      tx.set(notificationRef, {
+        'doctor_id': request.doctorId,
+        'title': 'Perubahan Jadwal Ditolak ❌',
+        'body':
+            'Permintaan perubahan jadwal Anda ditolak. Alasan: $rejectionReason',
+        'type': 'schedule_change_rejected',
+        'request_id': requestId,
+        'is_read': false,
+        'created_at': FieldValue.serverTimestamp(),
+      });
     });
   }
 

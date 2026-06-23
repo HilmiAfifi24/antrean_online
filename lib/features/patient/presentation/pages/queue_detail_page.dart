@@ -128,17 +128,17 @@ class QueueDetailController extends GetxController {
         .listen((count) => _waitingAheadCount.value = count);
   }
 
-  Future<void> cancelQueue() async {
+  Future<bool> cancelQueue() async {
     final q = _queue.value;
-    if (q == null) return;
+    if (q == null) return false;
 
     final queueController = Get.find<QueueController>();
-    await queueController.cancelQueue(q);
+    final success = await queueController.cancelQueue(q);
 
-    // Navigate back after cancellation
-    if (q.status == 'dibatalkan' || !q.isActive) {
+    if (success) {
       Get.back();
     }
+    return success;
   }
 }
 
@@ -657,19 +657,9 @@ class _QueueDetailPageState extends State<QueueDetailPage>
         if (queue.status == 'menunggu' || queue.status == 'waiting') ...[
           const SizedBox(height: 12),
           SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                final queueController = Get.find<QueueController>();
-                final q = _controller.queue;
-                if (q == null) return;
-                await queueController.cancelQueue(q);
-                if (_controller.queue?.status == 'dibatalkan' ||
-                    _controller.queue?.status == 'cancelled_by_patient' ||
-                    !(_controller.queue?.isActive ?? false)) {
-                  Get.back();
-                }
-              },
+              width: double.infinity,
+              child: OutlinedButton.icon(
+              onPressed: () => _controller.cancelQueue(),
               icon: const Icon(Icons.cancel_outlined, size: 18),
               label: const Text(
                 'Batalkan Antrean',

@@ -85,10 +85,11 @@ class DoctorsPage extends StatelessWidget {
                       final doctor = controller.filteredDoctors[index];
                       return DoctorCard(
                         doctor: doctor,
-                        onEdit: () => controller.showEditDoctorDialog(doctor),
+                        onEdit: () => controller.showEditDoctorDialog(doctor, context),
                         onDelete: () => controller.removeDoctor(
                           doctor.id,
                           doctor.namaLengkap,
+                          context,
                         ),
                       );
                     },
@@ -116,7 +117,7 @@ class DoctorsPage extends StatelessWidget {
           ],
         ),
         child: FloatingActionButton.extended(
-          onPressed: controller.showAddDoctorDialog,
+          onPressed: () => controller.showAddDoctorDialog(context),
           backgroundColor: Colors.transparent,
           elevation: 0,
           icon: const Icon(Icons.add_rounded, size: 24),

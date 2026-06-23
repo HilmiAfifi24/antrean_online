@@ -287,61 +287,75 @@ class _SubmitTab extends StatelessWidget {
           child: Column(
             children: controller.activeSchedules.map((schedule) {
               final id = schedule['id'] ?? '';
-              final isSelected = controller.selectedScheduleId.value == id;
               final days =
                   List<String>.from(schedule['days_of_week'] ?? []);
-              final label =
-                  '${days.join(', ')} • ${schedule['start_time']} – ${schedule['end_time']}';
 
-              return InkWell(
-                onTap: () => controller.selectSchedule(schedule),
-                borderRadius: BorderRadius.circular(12),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF1976D2).withValues(alpha: 0.08)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                    border: isSelected
-                        ? Border.all(
-                            color: const Color(0xFF1976D2), width: 1.5)
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isSelected
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        color: isSelected
-                            ? const Color(0xFF1976D2)
-                            : Colors.grey,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(label,
-                                style: TextStyle(
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? const Color(0xFF1976D2)
-                                        : Colors.black87)),
-                            if (schedule['poli_name'] != null)
-                              Text(schedule['poli_name'],
-                                  style: TextStyle(
-                                      fontSize: 12, color: Colors.grey[600])),
-                          ],
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule, color: Color(0xFF1976D2), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${schedule['start_time']} – ${schedule['end_time']}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
+                    if (schedule['poli_name'] != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        schedule['poli_name'],
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
-                  ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: days.map((day) {
+                        final isSelected =
+                            controller.selectedScheduleId.value == id &&
+                            controller.selectedOldDay.value == day;
+                        return ChoiceChip(
+                          label: Text(day),
+                          selected: isSelected,
+                          onSelected: (_) =>
+                              controller.selectSchedule(schedule, day: day),
+                          selectedColor: const Color(0xFF1976D2),
+                          labelStyle: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black87,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? const Color(0xFF1976D2)
+                                  : Colors.grey[300]!,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
               );
             }).toList(),

@@ -2,6 +2,24 @@
 
 A new Flutter project.
 
+## Firebase Seed
+
+Seed data untuk `Authentication`, `users`, `doctors`, `doctors_public`, dan `schedules` ada di folder `functions/`.
+
+Jalankan dari folder `functions`:
+
+```bash
+npm run seed
+```
+
+Script ini memakai Firebase Admin SDK. Pastikan salah satu ini sudah tersedia:
+
+- `GOOGLE_APPLICATION_CREDENTIALS` mengarah ke service account JSON
+- atau Anda sudah menjalankan `gcloud auth application-default login`
+- atau set `FIREBASE_SERVICE_ACCOUNT_KEY` berisi isi JSON service account
+
+Project ID diambil dari `.firebaserc` atau env `FIREBASE_PROJECT_ID`.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

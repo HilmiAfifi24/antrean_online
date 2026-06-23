@@ -236,7 +236,7 @@ class SchedulesPage extends StatelessWidget {
               ],
             ),
             child: FloatingActionButton.extended(
-              onPressed: controller.showAddScheduleDialog,
+              onPressed: () => controller.showAddScheduleDialog(context),
               backgroundColor: Colors.transparent,
               elevation: 0,
               icon: const Icon(Icons.add_rounded, size: 24),

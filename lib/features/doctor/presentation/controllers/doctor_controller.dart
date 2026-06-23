@@ -9,6 +9,10 @@ import '../../../../core/routes/app_routes.dart';
 class DoctorController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DoctorRepository _doctorRepository;
+
+  DoctorController({DoctorRepository? doctorRepository})
+      : _doctorRepository = doctorRepository ?? DoctorRepositoryImpl();
 
   // Observable variables
   final RxString _doctorName = ''.obs;
@@ -287,7 +291,8 @@ class DoctorController extends GetxController {
       _completedPatientsToday.value = completed;
       _waitingPatientsToday.value = waiting;
     } catch (e) {
-      // Error loading stats
+      // ignore: avoid_print
+      print('Error loading stats: $e');
     }
   }
 
@@ -299,24 +304,19 @@ class DoctorController extends GetxController {
       final user = _auth.currentUser;
       if (user == null || !isTodaySelected) return;
 
-      final targetDate = _selectedDate.value;
-      final startOfDay = DateTime(
-        targetDate.year,
-        targetDate.month,
-        targetDate.day,
+      await _doctorRepository.callNextPatient(user.uid);
+
+      Get.snackbar(
+        'Berhasil',
+        'Pasien berikutnya dipanggil',
+        snackPosition: SnackPosition.BOTTOM,
       );
 
-      // Find next waiting patient
-      final waitingQueues = await _firestore
-          .collection('queues')
-          .where('doctor_id', isEqualTo: user.uid)
-          .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
-          .where('status', whereIn: ['menunggu', 'waiting', 'rescheduled'])
-          .orderBy('queue_number')
-          .limit(1)
-          .get();
-
-      if (waitingQueues.docs.isEmpty) {
+      // Refresh stats
+      await _loadQueueStats();
+    } on Exception catch (e) {
+      final message = e.toString();
+      if (message.contains('no_waiting_patient')) {
         Get.snackbar(
           'Info',
           'Tidak ada pasien yang menunggu',
@@ -324,22 +324,11 @@ class DoctorController extends GetxController {
         );
         return;
       }
-
-      // Update status to 'dipanggil'
-      final queueDoc = waitingQueues.docs.first;
-      await _firestore.collection('queues').doc(queueDoc.id).update({
-        'status': 'dipanggil',
-        'called_at': FieldValue.serverTimestamp(),
-      });
-
       Get.snackbar(
-        'Berhasil',
-        'Pasien ${queueDoc.data()['patient_name']} dipanggil',
+        'Error',
+        'Gagal memanggil pasien: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
-
-      // Refresh stats
-      await _loadQueueStats();
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -359,37 +348,7 @@ class DoctorController extends GetxController {
       final user = _auth.currentUser;
       if (user == null || !isTodaySelected) return;
 
-      final targetDate = _selectedDate.value;
-      final startOfDay = DateTime(
-        targetDate.year,
-        targetDate.month,
-        targetDate.day,
-      );
-
-      // Find currently called patient
-      final calledQueues = await _firestore
-          .collection('queues')
-          .where('doctor_id', isEqualTo: user.uid)
-          .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
-          .where('status', isEqualTo: 'dipanggil')
-          .limit(1)
-          .get();
-
-      if (calledQueues.docs.isEmpty) {
-        Get.snackbar(
-          'Info',
-          'Tidak ada pasien yang sedang dipanggil',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-        return;
-      }
-
-      // Update status to 'selesai'
-      final queueDoc = calledQueues.docs.first;
-      await _firestore.collection('queues').doc(queueDoc.id).update({
-        'status': 'selesai',
-        'completed_at': FieldValue.serverTimestamp(),
-      });
+      await _doctorRepository.completeCurrentPatient(user.uid);
 
       Get.snackbar(
         'Berhasil',
@@ -399,6 +358,21 @@ class DoctorController extends GetxController {
 
       // Refresh stats
       await _loadQueueStats();
+    } on Exception catch (e) {
+      final message = e.toString();
+      if (message.contains('no_called_patient')) {
+        Get.snackbar(
+          'Info',
+          'Tidak ada pasien yang sedang dipanggil',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+      Get.snackbar(
+        'Error',
+        'Gagal menyelesaikan pasien: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -417,10 +391,8 @@ class DoctorController extends GetxController {
       final user = _auth.currentUser;
       if (user == null) return;
 
-      // Use repository implementation to handle skip logic (move to end)
-      final DoctorRepository repo = DoctorRepositoryImpl();
       try {
-        await repo.skipCurrentPatient(user.uid);
+        await _doctorRepository.skipCurrentPatient(user.uid);
 
         Get.snackbar(
           'Info',
@@ -465,94 +437,20 @@ class DoctorController extends GetxController {
         throw Exception('Dokter belum login');
       }
 
-      final targetDate = _selectedDate.value;
-      final startOfDay = DateTime(
-        targetDate.year,
-        targetDate.month,
-        targetDate.day,
+      final affectedCount = await _doctorRepository.cancelDoctorSession(
+        user.uid,
+        _selectedDate.value,
+        reason,
       );
 
-      final schedulesSnapshot = await _firestore
-          .collection('schedules')
-          .where('doctor_id', isEqualTo: user.uid)
-          .where('is_active', isEqualTo: true)
-          .get();
-
-      if (schedulesSnapshot.docs.isEmpty) {
-        throw Exception('Jadwal dokter tidak ditemukan');
-      }
-
-      final queueSnapshot = await _firestore
-          .collection('queues')
-          .where('doctor_id', isEqualTo: user.uid)
-          .where('appointment_date', isEqualTo: Timestamp.fromDate(startOfDay))
-          .where('status', whereIn: [
-            'menunggu',
-            'waiting',
-            'dipanggil',
-            'ongoing',
-            'rescheduled',
-          ])
-          .get();
-
-      if (queueSnapshot.docs.isEmpty) {
-        throw Exception('Tidak ada antrean aktif pada sesi ini');
-      }
-
-      final affectedQueues = queueSnapshot.docs;
-      final scheduleCounts = <String, int>{};
-      for (final doc in affectedQueues) {
-        final scheduleId = doc.data()['schedule_id'] ?? '';
-        if (scheduleId.isNotEmpty) {
-          scheduleCounts[scheduleId] = (scheduleCounts[scheduleId] ?? 0) + 1;
-        }
-      }
-
-      await _firestore.runTransaction((transaction) async {
-        for (final scheduleDoc in schedulesSnapshot.docs) {
-          final scheduleDoctorId = scheduleDoc.data()['doctor_id'] ?? '';
-          if (scheduleDoctorId != user.uid) {
-            throw Exception('Dokter hanya dapat membatalkan jadwal miliknya');
-          }
-        }
-
-        final scheduleCurrentPatients = <String, int>{};
-        for (final scheduleId in scheduleCounts.keys) {
-          final scheduleDoc = await transaction.get(
-            _firestore.collection('schedules').doc(scheduleId),
-          );
-          scheduleCurrentPatients[scheduleId] =
-              (scheduleDoc.data()?['current_patients'] as num?)?.toInt() ?? 0;
-        }
-
-        for (final doc in affectedQueues) {
-          transaction.update(doc.reference, {
-            'status': 'cancelled_by_doctor',
-            'cancellation_reason': reason,
-            'cancelled_at': FieldValue.serverTimestamp(),
-            'updated_at': FieldValue.serverTimestamp(),
-          });
-        }
-
-        for (final entry in scheduleCounts.entries) {
-          final current = scheduleCurrentPatients[entry.key] ?? 0;
-          final next = current - entry.value;
-          transaction.update(
-            _firestore.collection('schedules').doc(entry.key),
-            {'current_patients': next > 0 ? next : 0},
-          );
-        }
-      });
-
-      await notifyAffectedPatients(affectedQueues, reason);
       await _loadQueueStats();
 
       Get.snackbar(
         'Berhasil',
-        '${affectedQueues.length} pasien terdampak dan sudah diberi notifikasi',
+        '$affectedCount pasien terdampak dan sudah diberi notifikasi',
         snackPosition: SnackPosition.BOTTOM,
       );
-      return affectedQueues.length;
+      return affectedCount;
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -563,31 +461,6 @@ class DoctorController extends GetxController {
     } finally {
       _isLoading.value = false;
     }
-  }
-
-  Future<void> notifyAffectedPatients(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> queues,
-    String reason,
-  ) async {
-    final batch = _firestore.batch();
-    for (final queueDoc in queues) {
-      final queue = queueDoc.data();
-      final notificationRef = _firestore.collection('patient_notifications').doc();
-      batch.set(notificationRef, {
-        'patient_id': queue['patient_id'] ?? '',
-        'queue_id': queueDoc.id,
-        'doctor_id': queue['doctor_id'] ?? '',
-        'doctor_name': queue['doctor_name'] ?? doctorName,
-        'schedule_id': queue['schedule_id'] ?? '',
-        'title': 'Jadwal Dokter Dibatalkan',
-        'message':
-            'Jadwal dokter dibatalkan. Silakan lakukan penjadwalan ulang melalui aplikasi.',
-        'reason': reason,
-        'is_read': false,
-        'created_at': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
   }
 
   // Handle date selection

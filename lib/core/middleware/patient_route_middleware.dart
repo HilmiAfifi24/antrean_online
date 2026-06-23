@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:antrean_online/core/routes/app_routes.dart';
 import 'package:antrean_online/features/auth/data/datasources/auth_storage_keys.dart';
 import 'package:antrean_online/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class DoctorRouteMiddleware extends GetMiddleware {
+class PatientRouteMiddleware extends GetMiddleware {
   @override
   RouteSettings? redirect(String? route) {
     final firebaseUser = FirebaseAuth.instance.currentUser;
@@ -19,14 +19,13 @@ class DoctorRouteMiddleware extends GetMiddleware {
     final currentRole = authController?.currentUser.value?.role ??
         prefs?.getString(AuthStorageKeys.currentUserRole);
 
-    if (firebaseUser != null &&
-        (currentRole == 'dokter' || currentRole == 'doctor')) {
+    if (firebaseUser != null && currentRole == 'pasien') {
       return null;
     }
 
     return const RouteSettings(
       name: AppRoutes.login,
-      arguments: {'role': 'doctor'},
+      arguments: {'role': 'patient'},
     );
   }
 }

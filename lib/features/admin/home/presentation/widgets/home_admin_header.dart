@@ -176,7 +176,7 @@ class AdminHeader extends StatelessWidget {
                   ),
                 ),
                 child: IconButton(
-                  onPressed: () => _showLogoutDialog(),
+                  onPressed: () => _showLogoutDialog(context),
                   icon: const Icon(
                     Icons.logout_rounded,
                     color: Colors.white,
@@ -201,9 +201,11 @@ class AdminHeader extends StatelessWidget {
     return formattedName;
   }
 
-  void _showLogoutDialog() async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
+  void _showLogoutDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -222,7 +224,7 @@ class AdminHeader extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(result: false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text(
               "Batal",
               style: TextStyle(
@@ -232,7 +234,7 @@ class AdminHeader extends StatelessWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: () => Get.back(result: true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               shape: RoundedRectangleBorder(
@@ -253,6 +255,7 @@ class AdminHeader extends StatelessWidget {
 
     if (confirmed == true) {
       await FirebaseAuth.instance.signOut();
+      await Future.delayed(const Duration(milliseconds: 150));
       Get.offAllNamed(AppRoutes.roleSelection);
     }
   }

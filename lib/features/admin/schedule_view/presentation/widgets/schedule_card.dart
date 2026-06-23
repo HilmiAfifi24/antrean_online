@@ -1,4 +1,4 @@
-﻿import 'package:antrean_online/features/admin/schedule_view/domain/entities/schedule_admin_entity.dart';
+import 'package:antrean_online/features/admin/schedule_view/domain/entities/schedule_admin_entity.dart';
 import 'package:antrean_online/features/admin/schedule_view/presentation/controllers/schedule_admin_controller.dart';
 import 'package:antrean_online/features/admin/notification/presentation/widgets/notification_buttons.dart';
 import 'package:flutter/material.dart';
@@ -190,27 +190,14 @@ class _ScheduleCardState extends State<ScheduleCard>
               icon: Icon(Icons.more_vert_rounded, color: statusColor),
               onSelected: (v) {
                 if (v == 'edit') {
-                  controller.showEditScheduleDialog(widget.schedule);
-                } else if (v == 'delete' &&
-                    widget.schedule.currentPatients == 0) {
-                  Get.dialog(
-                    AlertDialog(
-                      title: const Text('Konfirmasi'),
-                      content: const Text('Nonaktifkan jadwal ini?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Get.back(),
-                          child: const Text('Batal'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Get.back();
-                            controller.deleteScheduleById(widget.schedule.id);
-                          },
-                          child: const Text('Nonaktifkan'),
-                        ),
-                      ],
-                    ),
+                  controller.showEditScheduleDialog(widget.schedule, context);
+                } else if (v == 'delete') {
+                  controller.deleteScheduleById(
+                    widget.schedule.id,
+                    context,
+                    dayToDeactivate: widget.schedule.daysOfWeek.isNotEmpty
+                        ? widget.schedule.daysOfWeek.first
+                        : null,
                   );
                 } else if (v == 'activate') {
                   controller.activateScheduleById(widget.schedule.id);

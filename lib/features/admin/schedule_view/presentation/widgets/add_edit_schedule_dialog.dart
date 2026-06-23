@@ -52,7 +52,7 @@ class AddEditScheduleDialog extends StatelessWidget {
                     ),
                     const Spacer(),
                     IconButton(
-                      onPressed: () => Get.back(),
+                      onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close, color: Color(0xFF64748B)),
                     ),
                   ],
@@ -360,7 +360,7 @@ class AddEditScheduleDialog extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Get.back(),
+                        onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           side: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -382,9 +382,10 @@ class AddEditScheduleDialog extends StatelessWidget {
                                 if (isEdit) {
                                   controller.updateExistingSchedule(
                                     controller.currentSchedule!.id,
+                                    context,
                                   );
                                 } else {
-                                  controller.addNewSchedule();
+                                  controller.addNewSchedule(context);
                                 }
                               }
                             : null,

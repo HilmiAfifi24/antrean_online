@@ -39,7 +39,8 @@ class ScheduleAdminRemoteDatasource {
 
   /// Add new schedule
   Future<String> addSchedule(ScheduleAdminModel schedule) async {
-    final docRef = await firestore.collection('schedules').add(schedule.toFirestore());
+    final docRef = firestore.collection('schedules').doc();
+    await docRef.set(schedule.toFirestore());
 
     await _logActivity(
       title: 'Jadwal Baru Ditambahkan',
@@ -52,7 +53,8 @@ class ScheduleAdminRemoteDatasource {
 
   /// Update schedule
   Future<void> updateSchedule(String id, ScheduleAdminModel schedule) async {
-    await firestore.collection('schedules').doc(id).update(schedule.toFirestoreForUpdate());
+    final ref = firestore.collection('schedules').doc(id);
+    await ref.update(schedule.toFirestoreForUpdate());
 
     await _logActivity(
       title: 'Jadwal Diperbarui',
@@ -63,34 +65,32 @@ class ScheduleAdminRemoteDatasource {
 
   /// Soft delete schedule (mark inactive)
   Future<void> deleteSchedule(String id) async {
-    final schedule = await getScheduleById(id);
-    if (schedule == null) throw Exception('Schedule not found');
-
-    await firestore.collection('schedules').doc(id).update({
+    final ref = firestore.collection('schedules').doc(id);
+    await ref.update({
       'is_active': false,
       'updated_at': FieldValue.serverTimestamp(),
     });
 
+    final schedule = await getScheduleById(id);
     await _logActivity(
       title: 'Jadwal Dihapus',
-      subtitle: 'Jadwal untuk ${schedule.doctorName} dinonaktifkan',
+      subtitle: 'Jadwal untuk ${schedule?.doctorName ?? "Dokter"} dinonaktifkan',
       type: 'schedule_deleted',
     );
   }
 
   /// Activate schedule (restore from soft delete)
   Future<void> activateSchedule(String id) async {
-    final schedule = await getScheduleById(id);
-    if (schedule == null) throw Exception('Schedule not found');
-
-    await firestore.collection('schedules').doc(id).update({
+    final ref = firestore.collection('schedules').doc(id);
+    await ref.update({
       'is_active': true,
       'updated_at': FieldValue.serverTimestamp(),
     });
 
+    final schedule = await getScheduleById(id);
     await _logActivity(
       title: 'Jadwal Diaktifkan',
-      subtitle: 'Jadwal untuk ${schedule.doctorName} telah diaktifkan kembali',
+      subtitle: 'Jadwal untuk ${schedule?.doctorName ?? "Dokter"} telah diaktifkan kembali',
       type: 'schedule_activated',
     );
   }

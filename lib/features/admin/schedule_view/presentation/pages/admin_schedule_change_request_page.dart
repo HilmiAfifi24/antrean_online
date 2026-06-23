@@ -268,41 +268,45 @@ class _AdminRequestCard extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showRejectDialog(context),
-                        icon: const Icon(Icons.close, size: 16),
-                        label: const Text('Tolak'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Obx(() => ElevatedButton.icon(
+                      child: Obx(() => OutlinedButton.icon(
                             onPressed: controller.isProcessing.value
                                 ? null
-                                : () => controller
-                                    .approveRequest(request.requestId),
-                            icon: controller.isProcessing.value
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white))
-                                : const Icon(Icons.check, size: 16),
-                            label: const Text('Setujui'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981),
-                              foregroundColor: Colors.white,
+                                : () => _showRejectDialog(context),
+                            icon: const Icon(Icons.close, size: 16),
+                            label: const Text('Tolak'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10)),
                             ),
                           )),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Obx(() {
+                        final isApproveLoading = controller.processingApproveRequestId.value == request.requestId;
+                        return ElevatedButton.icon(
+                          onPressed: controller.isProcessing.value
+                              ? null
+                              : () => controller.approveRequest(request.requestId, isDialog: false),
+                          icon: isApproveLoading
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white))
+                              : const Icon(Icons.check, size: 16),
+                          label: const Text('Setujui'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      }),
                     ),
                   ],
                 ),
@@ -355,84 +359,103 @@ class _AdminRequestCard extends StatelessWidget {
   }
 
   void _showDetailDialog(BuildContext context) {
-    Get.dialog(
-      Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('Detail Permintaan',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 18)),
-                  ),
-                  IconButton(
-                      onPressed: Get.back,
-                      icon: const Icon(Icons.close)),
-                ],
-              ),
-              const Divider(),
-              const SizedBox(height: 8),
-              _detailRow('Dokter', request.doctorName),
-              _detailRow('Jadwal Lama',
-                  '${request.oldDay}  ${request.oldStartTime}–${request.oldEndTime}'),
-              _detailRow('Jadwal Baru',
-                  '${request.newDay}  ${request.newStartTime}–${request.newEndTime}'),
-              _detailRow('Alasan', request.reason),
-              _detailRow(
-                'Tanggal Request',
-                DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
-                    .format(request.createdAt),
-              ),
-              if (request.rejectionReason != null)
-                _detailRow('Alasan Tolak', request.rejectionReason!,
-                    valueColor: Colors.red),
-              const SizedBox(height: 16),
-              if (request.status == ScheduleChangeRequestStatus.pending)
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                           Get.back();
-                           _showRejectDialog(context);
-                        },
-                        style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10))),
-                        child: const Text('Tolak'),
-                      ),
+                    const Expanded(
+                      child: Text('Detail Permintaan',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 18)),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Obx(() => ElevatedButton(
+                    IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close)),
+                  ],
+                ),
+                const Divider(),
+                const SizedBox(height: 8),
+                _detailRow('Dokter', request.doctorName),
+                _detailRow('Jadwal Lama',
+                    '${request.oldDay}  ${request.oldStartTime}–${request.oldEndTime}'),
+                _detailRow('Jadwal Baru',
+                    '${request.newDay}  ${request.newStartTime}–${request.newEndTime}'),
+                _detailRow('Alasan', request.reason),
+                _detailRow(
+                  'Tanggal Request',
+                  DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
+                      .format(request.createdAt),
+                ),
+                if (request.rejectionReason != null)
+                  _detailRow('Alasan Tolak', request.rejectionReason!,
+                      valueColor: Colors.red),
+                const SizedBox(height: 16),
+                if (request.status == ScheduleChangeRequestStatus.pending)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Obx(() => OutlinedButton(
+                              onPressed: controller.isProcessing.value
+                                  ? null
+                                  : () {
+                                      Navigator.of(dialogContext).pop();
+                                      _showRejectDialog(context);
+                                    },
+                              style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10))),
+                              child: const Text('Tolak'),
+                            )),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Obx(() {
+                          final isApproveLoading = controller.processingApproveRequestId.value == request.requestId;
+                          return ElevatedButton(
                             onPressed: controller.isProcessing.value
                                 ? null
-                                : () => controller
-                                    .approveRequest(request.requestId),
+                                : () => controller.approveRequest(
+                                      request.requestId,
+                                      isDialog: true,
+                                      context: dialogContext,
+                                    ),
                             style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF10B981),
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                     borderRadius:
                                         BorderRadius.circular(10))),
-                            child: const Text('Setujui'),
-                          )),
-                    ),
-                  ],
-                ),
-            ],
+                            child: isApproveLoading
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white))
+                                : const Text('Setujui'),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -462,63 +485,67 @@ class _AdminRequestCard extends StatelessWidget {
   void _showRejectDialog(BuildContext context) {
     controller.rejectionReasonController.clear();
     if (!context.mounted) return;
-    Get.dialog(
-      Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Tolak Permintaan',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 18)),
-              const SizedBox(height: 8),
-              Text(
-                'Berikan alasan penolakan untuk dr. ${request.doctorName}',
-                style:
-                    TextStyle(fontSize: 13, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller.rejectionReasonController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Masukkan alasan penolakan...',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: Color(0xFF3B82F6), width: 2),
-                  ),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Tolak Permintaan',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 8),
+                Text(
+                  'Berikan alasan penolakan untuk dr. ${request.doctorName}',
+                  style:
+                      TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: Get.back,
-                      child: const Text('Batal'),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller.rejectionReasonController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Masukkan alasan penolakan...',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: Color(0xFF3B82F6), width: 2),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Obx(() => ElevatedButton(
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Obx(() {
+                        final isRejectLoading = controller.processingRejectRequestId.value == request.requestId;
+                        return ElevatedButton(
                           onPressed: controller.isProcessing.value
                               ? null
-                              : () => controller
-                                  .rejectRequest(request.requestId),
+                              : () => controller.rejectRequest(request.requestId, dialogContext),
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                   borderRadius:
                                       BorderRadius.circular(10))),
-                          child: controller.isProcessing.value
+                          child: isRejectLoading
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
@@ -526,14 +553,16 @@ class _AdminRequestCard extends StatelessWidget {
                                       strokeWidth: 2,
                                       color: Colors.white))
                               : const Text('Tolak'),
-                        )),
-                  ),
-                ],
-              ),
-            ],
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

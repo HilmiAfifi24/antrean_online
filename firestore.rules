@@ -18,11 +18,30 @@ service cloud.firestore {
       return userExists(request.auth.uid) ? userDoc(request.auth.uid).data.role : null;
     }
 
+    function tokenRole() {
+      return signedIn() && request.auth.token.role is string
+        ? request.auth.token.role
+        : null;
+    }
+
+    function tokenIsActive() {
+      return signedIn() && request.auth.token.is_active != false;
+    }
+
+    function tokenRoleMatches(expectedRole) {
+      return tokenIsActive() && tokenRole() == expectedRole;
+    }
+
     function roleMatches(expectedRole) {
       return signedIn()
-        && userExists(request.auth.uid)
-        && userDoc(request.auth.uid).data.is_active != false
-        && docRole() == expectedRole;
+        && (
+          tokenRoleMatches(expectedRole)
+          || (
+            userExists(request.auth.uid)
+            && userDoc(request.auth.uid).data.is_active != false
+            && docRole() == expectedRole
+          )
+        );
     }
 
     function isAdmin() {
@@ -49,6 +68,18 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/schedules/$(scheduleId));
     }
 
+    function queueDoc(queueId) {
+      return get(/databases/$(database)/documents/queues/$(queueId));
+    }
+
+    function queueDocAfter(queueId) {
+      return getAfter(/databases/$(database)/documents/queues/$(queueId));
+    }
+
+    function scheduleDocAfter(scheduleId) {
+      return getAfter(/databases/$(database)/documents/schedules/$(scheduleId));
+    }
+
     function doctorOwnsSchedule(scheduleId) {
       return exists(/databases/$(database)/documents/schedules/$(scheduleId))
         && scheduleDoc(scheduleId).data.doctor_id == request.auth.uid
@@ -61,6 +92,15 @@ service cloud.firestore {
         && scheduleDoc(request.resource.data.schedule_id).data.is_active == true;
     }
 
+    function queueScheduleMatchesBooking() {
+      return queueScheduleMatchesDoctor()
+        && request.resource.data.appointment_date == scheduleDoc(request.resource.data.schedule_id).data.date
+        && request.resource.data.appointment_time ==
+          (scheduleDoc(request.resource.data.schedule_id).data.start_time + ' - ' + scheduleDoc(request.resource.data.schedule_id).data.end_time)
+        && request.resource.data.doctor_name == scheduleDoc(request.resource.data.schedule_id).data.doctor_name
+        && request.resource.data.doctor_specialization == scheduleDoc(request.resource.data.schedule_id).data.doctor_specialization;
+    }
+
     function scheduleDoctorUpdateAllowed() {
       return changedKeys().hasOnly([
         'current_patients',
@@ -68,13 +108,60 @@ service cloud.firestore {
       ]);
     }
 
+    function patientScheduleIncrementAllowed(scheduleId) {
+      let lockId = request.auth.uid + '_' + resource.data.doctor_id;
+      return changedKeys().hasOnly([
+        'current_patients',
+        'updated_at',
+      ])
+        && request.resource.data.current_patients is int
+        && request.resource.data.current_patients == resource.data.current_patients + 1
+        && request.resource.data.current_patients <= resource.data.max_patients
+        && existsAfter(/databases/$(database)/documents/patient_queue_locks/$(lockId))
+        && patientQueueLockDocAfter(lockId).data.patient_id == request.auth.uid
+        && patientQueueLockDocAfter(lockId).data.doctor_id == resource.data.doctor_id
+        && patientQueueLockDocAfter(lockId).data.schedule_id == scheduleId
+        && patientQueueLockDocAfter(lockId).data.status == 'active'
+        && existsAfter(/databases/$(database)/documents/queues/$(patientQueueLockDocAfter(lockId).data.queue_id))
+        && queueDocAfter(patientQueueLockDocAfter(lockId).data.queue_id).data.patient_id == request.auth.uid
+        && queueDocAfter(patientQueueLockDocAfter(lockId).data.queue_id).data.doctor_id == resource.data.doctor_id
+        && queueDocAfter(patientQueueLockDocAfter(lockId).data.queue_id).data.status in ['menunggu', 'rescheduled'];
+    }
+
+    function patientScheduleDecrementAllowed(scheduleId) {
+      let lockId = request.auth.uid + '_' + resource.data.doctor_id;
+      return changedKeys().hasOnly([
+        'current_patients',
+        'updated_at',
+      ])
+        && request.resource.data.current_patients is int
+        && request.resource.data.current_patients == resource.data.current_patients - 1
+        && request.resource.data.current_patients >= 0
+        && exists(/databases/$(database)/documents/patient_queue_locks/$(lockId))
+        && patientQueueLockDoc(lockId).data.patient_id == request.auth.uid
+        && patientQueueLockDoc(lockId).data.doctor_id == resource.data.doctor_id
+        && patientQueueLockDoc(lockId).data.status == 'active'
+        && existsAfter(/databases/$(database)/documents/queues/$(patientQueueLockDoc(lockId).data.queue_id))
+        && queueDocAfter(patientQueueLockDoc(lockId).data.queue_id).data.patient_id == request.auth.uid
+        && queueDocAfter(patientQueueLockDoc(lockId).data.queue_id).data.doctor_id == resource.data.doctor_id
+        && (
+          queueDocAfter(patientQueueLockDoc(lockId).data.queue_id).data.status == 'cancelled_by_patient'
+          || (
+            queueDocAfter(patientQueueLockDoc(lockId).data.queue_id).data.status == 'rescheduled'
+            && queueDocAfter(patientQueueLockDoc(lockId).data.queue_id).data.rescheduled_from.schedule_id == scheduleId
+          )
+        );
+    }
+
     function queuePatientCancelAllowed() {
       return resource.data.status in ['menunggu', 'waiting', 'dipanggil', 'ongoing', 'rescheduled']
         && changedKeys().hasOnly([
           'status',
           'cancelled_at',
+          'updated_at',
         ])
-        && request.resource.data.status == 'cancelled_by_patient';
+        && request.resource.data.status == 'cancelled_by_patient'
+        && request.resource.data.updated_at == request.time;
     }
 
     function queuePatientRescheduleAllowed() {
@@ -93,7 +180,10 @@ service cloud.firestore {
         && request.resource.data.status == 'rescheduled'
         && request.resource.data.patient_id == resource.data.patient_id
         && request.resource.data.doctor_id == resource.data.doctor_id
-        && queueScheduleMatchesDoctor();
+        && request.resource.data.queue_number is int
+        && request.resource.data.queue_number > 0
+        && request.resource.data.updated_at == request.time
+        && queueScheduleMatchesBooking();
     }
 
     function queueDoctorCallAllowed() {
@@ -101,6 +191,7 @@ service cloud.firestore {
         && changedKeys().hasOnly([
           'status',
           'called_at',
+          'updated_at',
         ])
         && request.resource.data.status == 'dipanggil';
     }
@@ -110,6 +201,7 @@ service cloud.firestore {
         && changedKeys().hasOnly([
           'status',
           'completed_at',
+          'updated_at',
         ])
         && request.resource.data.status == 'selesai';
     }
@@ -120,6 +212,7 @@ service cloud.firestore {
           'status',
           'skipped_at',
           'queue_number',
+          'updated_at',
         ])
         && request.resource.data.status == 'menunggu';
     }
@@ -143,6 +236,50 @@ service cloud.firestore {
     function patientNotificationReadOnlyUpdate() {
       return changedKeys().hasOnly(['is_read'])
         && request.resource.data.is_read == true;
+    }
+
+    function queueBelongsToDoctorAndPatient(queueId) {
+      return exists(/databases/$(database)/documents/queues/$(queueId))
+        && queueDoc(queueId).data.doctor_id == request.resource.data.doctor_id
+        && queueDoc(queueId).data.patient_id == request.resource.data.patient_id
+        && queueDoc(queueId).data.schedule_id == request.resource.data.schedule_id
+        && queueDoc(queueId).data.doctor_id == request.auth.uid;
+    }
+
+    function scheduleChangeLockDoc(lockId) {
+      return get(/databases/$(database)/documents/schedule_change_request_locks/$(lockId));
+    }
+
+    function scheduleChangeLockDocAfter(lockId) {
+      return getAfter(/databases/$(database)/documents/schedule_change_request_locks/$(lockId));
+    }
+
+    function patientQueueLockDoc(lockId) {
+      return get(/databases/$(database)/documents/patient_queue_locks/$(lockId));
+    }
+
+    function patientQueueLockDocAfter(lockId) {
+      return getAfter(/databases/$(database)/documents/patient_queue_locks/$(lockId));
+    }
+
+    function patientQueueLockId(scheduleId) {
+      return request.auth.uid + '_' + scheduleDoc(scheduleId).data.doctor_id;
+    }
+
+    function queueSequenceCounterDoc(scheduleId) {
+      return get(/databases/$(database)/documents/queue_sequence_counters/$(scheduleId));
+    }
+
+    function queueSequenceCounterDocAfter(scheduleId) {
+      return getAfter(/databases/$(database)/documents/queue_sequence_counters/$(scheduleId));
+    }
+
+    function queueMutationMatchesPatientLock(queueId, patientId, doctorId, scheduleId) {
+      return existsAfter(/databases/$(database)/documents/queues/$(queueId))
+        && queueDocAfter(queueId).data.patient_id == patientId
+        && queueDocAfter(queueId).data.doctor_id == doctorId
+        && queueDocAfter(queueId).data.schedule_id == scheduleId
+        && queueDocAfter(queueId).data.updated_at == request.time;
     }
 
     match /users/{userId} {
@@ -189,14 +326,14 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (isDoctor()
           && resource.data.doctor_id == request.auth.uid
-          && scheduleDoctorUpdateAllowed());
+          && scheduleDoctorUpdateAllowed())
+        || (isPatient()
+          && (patientScheduleIncrementAllowed(scheduleId)
+            || patientScheduleDecrementAllowed(scheduleId)));
     }
 
     match /queues/{queueId} {
-      allow read: if signedIn()
-        && (isAdmin()
-          || resource.data.patient_id == request.auth.uid
-          || resource.data.doctor_id == request.auth.uid);
+      allow read: if signedIn();
 
       allow create: if signedIn()
         && (
@@ -212,13 +349,47 @@ service cloud.firestore {
             && request.resource.data.appointment_date is timestamp
             && request.resource.data.appointment_time is string
             && request.resource.data.queue_number is int
+            && request.resource.data.queue_number > 0
             && request.resource.data.complaint is string
-            && queueScheduleMatchesDoctor())
+            && queueScheduleMatchesBooking()
+            && existsAfter(/databases/$(database)/documents/patient_queue_locks/$(request.resource.data.patient_id + '_' + request.resource.data.doctor_id))
+            && patientQueueLockDocAfter(request.resource.data.patient_id + '_' + request.resource.data.doctor_id).data.patient_id == request.resource.data.patient_id
+            && patientQueueLockDocAfter(request.resource.data.patient_id + '_' + request.resource.data.doctor_id).data.doctor_id == request.resource.data.doctor_id
+            && patientQueueLockDocAfter(request.resource.data.patient_id + '_' + request.resource.data.doctor_id).data.schedule_id == request.resource.data.schedule_id
+            && patientQueueLockDocAfter(request.resource.data.patient_id + '_' + request.resource.data.doctor_id).data.appointment_date == request.resource.data.appointment_date
+            && patientQueueLockDocAfter(request.resource.data.patient_id + '_' + request.resource.data.doctor_id).data.queue_id == queueId
+            && (
+              (
+                !exists(/databases/$(database)/documents/queue_sequence_counters/$(request.resource.data.schedule_id))
+                && request.resource.data.queue_number == 1
+              )
+              || (
+                exists(/databases/$(database)/documents/queue_sequence_counters/$(request.resource.data.schedule_id))
+                && (
+                  (
+                    queueSequenceCounterDoc(request.resource.data.schedule_id).data.appointment_date == request.resource.data.appointment_date
+                    && queueSequenceCounterDoc(request.resource.data.schedule_id).data.next_queue_number == request.resource.data.queue_number
+                  )
+                  || (
+                    queueSequenceCounterDoc(request.resource.data.schedule_id).data.appointment_date != request.resource.data.appointment_date
+                    && request.resource.data.queue_number == 1
+                  )
+                )
+              )
+            )
+            && existsAfter(/databases/$(database)/documents/queue_sequence_counters/$(request.resource.data.schedule_id))
+            && queueSequenceCounterDocAfter(request.resource.data.schedule_id).data.schedule_id == request.resource.data.schedule_id
+            && queueSequenceCounterDocAfter(request.resource.data.schedule_id).data.appointment_date == request.resource.data.appointment_date
+            && queueSequenceCounterDocAfter(request.resource.data.schedule_id).data.next_queue_number == request.resource.data.queue_number + 1
+          )
         );
 
       allow update: if isAdmin()
         || (resource.data.patient_id == request.auth.uid
-          && (queuePatientCancelAllowed() || queuePatientRescheduleAllowed()))
+          && (queuePatientCancelAllowed() || queuePatientRescheduleAllowed())
+          && exists(/databases/$(database)/documents/patient_queue_locks/$(resource.data.patient_id + '_' + resource.data.doctor_id))
+          && patientQueueLockDoc(resource.data.patient_id + '_' + resource.data.doctor_id).data.patient_id == resource.data.patient_id
+          && patientQueueLockDoc(resource.data.patient_id + '_' + resource.data.doctor_id).data.doctor_id == resource.data.doctor_id)
         || (resource.data.doctor_id == request.auth.uid
           && (queueDoctorCallAllowed() || queueDoctorCompleteAllowed() || queueDoctorSkipAllowed() || queueDoctorCancelAllowed()));
 
@@ -234,6 +405,13 @@ service cloud.firestore {
         && request.resource.data.status == 'pending'
         && request.resource.data.old_schedule_id is string
         && doctorOwnsSchedule(request.resource.data.old_schedule_id)
+        && request.resource.data.lock_id is string
+        && request.resource.data.lock_id == (request.resource.data.doctor_id + '_' + request.resource.data.old_schedule_id)
+        && existsAfter(/databases/$(database)/documents/schedule_change_request_locks/$(request.resource.data.lock_id))
+        && scheduleChangeLockDocAfter(request.resource.data.lock_id).data.doctor_id == request.resource.data.doctor_id
+        && scheduleChangeLockDocAfter(request.resource.data.lock_id).data.schedule_id == request.resource.data.old_schedule_id
+        && scheduleChangeLockDocAfter(request.resource.data.lock_id).data.request_id == requestId
+        && scheduleChangeLockDocAfter(request.resource.data.lock_id).data.status == 'pending'
         && request.resource.data.old_day is string
         && request.resource.data.old_start_time is string
         && request.resource.data.old_end_time is string
@@ -249,18 +427,161 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /schedule_change_request_locks/{lockId} {
+      allow read: if isAdmin()
+        || (isDoctor() && (resource == null || resource.data.doctor_id == request.auth.uid));
+
+      allow create: if isDoctor()
+        && request.resource.data.doctor_id == request.auth.uid
+        && request.resource.data.schedule_id is string
+        && doctorOwnsSchedule(request.resource.data.schedule_id)
+        && request.resource.data.request_id is string
+        && request.resource.data.status == 'pending';
+
+      allow update: if isAdmin();
+
+      allow delete: if isAdmin()
+        || (isDoctor()
+          && resource.data.doctor_id == request.auth.uid
+          && resource.data.status == 'pending');
+    }
+
+    match /doctor_schedule_mutation_locks/{lockId} {
+      allow read: if isAdmin();
+
+      allow create: if isAdmin()
+        && lockId == 'global'
+        && request.resource.data.lock_scope == 'global'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.operation is string
+        && request.resource.data.type is string
+        && request.resource.data.doctor_id is string
+        && request.resource.data.request_id is string;
+
+      allow update, delete: if isAdmin()
+        && lockId == 'global';
+    }
+
+    match /patient_queue_locks/{lockId} {
+      allow read: if signedIn()
+        && (
+          isAdmin()
+          || resource == null
+          || resource.data.patient_id == request.auth.uid
+          || resource.data.doctor_id == request.auth.uid);
+
+      allow create: if isPatient()
+        && request.resource.data.patient_id == request.auth.uid
+        && request.resource.data.doctor_id is string
+        && request.resource.data.schedule_id is string
+        && request.resource.data.appointment_date is timestamp
+        && request.resource.data.queue_id is string
+        && request.resource.data.status == 'active'
+        && queueMutationMatchesPatientLock(
+          request.resource.data.queue_id,
+          request.resource.data.patient_id,
+          request.resource.data.doctor_id,
+          request.resource.data.schedule_id
+        )
+        && queueDocAfter(request.resource.data.queue_id).data.status in ['menunggu', 'rescheduled']
+        && queueDocAfter(request.resource.data.queue_id).data.queue_number > 0;
+
+      allow update: if isPatient()
+        && resource.data.patient_id == request.auth.uid
+        && request.resource.data.patient_id == request.auth.uid
+        && request.resource.data.doctor_id == resource.data.doctor_id
+        && request.resource.data.queue_id == resource.data.queue_id
+        && request.resource.data.schedule_id is string
+        && request.resource.data.appointment_date is timestamp
+        && request.resource.data.status == 'active'
+        && queueMutationMatchesPatientLock(
+          request.resource.data.queue_id,
+          request.resource.data.patient_id,
+          request.resource.data.doctor_id,
+          request.resource.data.schedule_id
+        )
+        && queueDocAfter(request.resource.data.queue_id).data.status in ['menunggu', 'rescheduled']
+        && queueDocAfter(request.resource.data.queue_id).data.queue_number > 0;
+
+      allow delete: if (
+        isPatient()
+        && resource.data.patient_id == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/queues/$(resource.data.queue_id))
+        && queueDocAfter(resource.data.queue_id).data.updated_at == request.time
+        && queueDocAfter(resource.data.queue_id).data.patient_id == resource.data.patient_id
+        && queueDocAfter(resource.data.queue_id).data.doctor_id == resource.data.doctor_id
+        && queueDocAfter(resource.data.queue_id).data.schedule_id == resource.data.schedule_id
+        && queueDocAfter(resource.data.queue_id).data.status in ['cancelled_by_patient', 'cancelled_by_doctor', 'selesai', 'completed']
+      ) || (
+        isDoctor()
+        && resource.data.doctor_id == request.auth.uid
+      );
+    }
+
+    match /queue_sequence_counters/{scheduleId} {
+      allow read: if signedIn();
+
+      allow create: if isPatient()
+        && request.resource.data.schedule_id == scheduleId
+        && request.resource.data.appointment_date is timestamp
+        && request.resource.data.next_queue_number == 2
+        && request.resource.data.status == 'active'
+        && existsAfter(/databases/$(database)/documents/patient_queue_locks/$(patientQueueLockId(scheduleId)))
+        && patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.patient_id == request.auth.uid
+        && patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.doctor_id == scheduleDoc(scheduleId).data.doctor_id
+        && patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.schedule_id == scheduleId
+        && patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.status == 'active'
+        && patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.updated_at == request.time
+        && existsAfter(/databases/$(database)/documents/queues/$(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id))
+        && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.schedule_id == scheduleId
+        && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.patient_id == request.auth.uid
+        && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.queue_number == 1
+        && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.status == 'menunggu'
+        && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.updated_at == request.time;
+
+      allow update: if isPatient()
+        && request.resource.data.schedule_id == scheduleId
+        && request.resource.data.appointment_date is timestamp
+        && request.resource.data.next_queue_number is int
+        && request.resource.data.status == 'active'
+        && existsAfter(/databases/$(database)/documents/patient_queue_locks/$(patientQueueLockId(scheduleId)))
+        && patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.patient_id == request.auth.uid
+        && patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.doctor_id == scheduleDoc(scheduleId).data.doctor_id
+        && patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.updated_at == request.time
+        && (
+          (
+            request.resource.data.appointment_date == resource.data.appointment_date
+            && request.resource.data.next_queue_number == resource.data.next_queue_number + 1
+            && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.queue_number == resource.data.next_queue_number
+            && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.status in ['menunggu', 'rescheduled']
+            && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.updated_at == request.time
+          )
+          || (
+            request.resource.data.appointment_date != resource.data.appointment_date
+            && request.resource.data.next_queue_number == 2
+            && existsAfter(/databases/$(database)/documents/queues/$(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id))
+            && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.schedule_id == scheduleId
+            && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.patient_id == request.auth.uid
+            && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.queue_number == 1
+            && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.status == 'menunggu'
+            && queueDocAfter(patientQueueLockDocAfter(patientQueueLockId(scheduleId)).data.queue_id).data.updated_at == request.time
+          )
+        );
+
+      allow delete: if isAdmin();
+    }
+
     match /doctor_notifications/{notificationId} {
       allow read: if isAdmin()
         || (isDoctor() && resource.data.doctor_id == request.auth.uid);
 
       allow create: if isAdmin()
-        || (isDoctor()
-          && request.resource.data.doctor_id == request.auth.uid
-          && request.resource.data.title is string
-          && request.resource.data.body is string
-          && request.resource.data.type is string
-          && request.resource.data.request_id is string
-          && request.resource.data.is_read == false);
+        && request.resource.data.doctor_id is string
+        && request.resource.data.title is string
+        && request.resource.data.body is string
+        && request.resource.data.type is string
+        && request.resource.data.request_id is string
+        && request.resource.data.is_read == false;
 
       allow update: if isAdmin()
         || (isDoctor()
@@ -280,16 +601,7 @@ service cloud.firestore {
         && request.resource.data.date is timestamp
         && request.resource.data.status == 'reported';
 
-      allow update: if isAdmin()
-        || (isDoctor()
-          && resource.data.doctor_id == request.auth.uid
-          && request.resource.data.doctor_id == resource.data.doctor_id
-          && request.resource.data.doctor_name is string
-          && request.resource.data.date is timestamp
-          && request.resource.data.status is string);
-
-      allow delete: if isAdmin()
-        || (isDoctor() && resource.data.doctor_id == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
     match /patient_notifications/{notificationId} {
@@ -305,7 +617,8 @@ service cloud.firestore {
         && request.resource.data.title is string
         && request.resource.data.message is string
         && request.resource.data.reason is string
-        && request.resource.data.is_read == false;
+        && request.resource.data.is_read == false
+        && queueBelongsToDoctorAndPatient(request.resource.data.queue_id);
 
       allow update: if isAdmin()
         || (signedIn()

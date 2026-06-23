@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
+import 'package:antrean_online/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:antrean_online/core/utils/app_snackbar.dart';
 
 class ScheduleController extends GetxController {
   final schedule_admin_usecases.GetAllSchedules getAllSchedules;
@@ -53,6 +55,10 @@ class ScheduleController extends GetxController {
   // Stream subscriptions for realtime updates
   StreamSubscription? _doctorsSubscription;
   StreamSubscription? _schedulesSubscription;
+  Worker? _authUserWorker;
+  Worker? _authReadyWorker;
+  AuthController? _authController;
+  bool _hasAdminAccess = false;
 
   // Getters
   List<ScheduleAdminEntity> get schedules => _schedules.toList();
@@ -92,9 +98,7 @@ class ScheduleController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadSchedules();
-    loadDoctors();
-    _setupRealtimeListeners();
+    _bindAuthState();
     
     // Listen to search changes
     searchController.addListener(() {
@@ -105,8 +109,62 @@ class ScheduleController extends GetxController {
     maxPatientsController.addListener(_validateForm);
   }
 
+  bool _canAccessAdminData() {
+    final auth = _authController ??
+        (Get.isRegistered<AuthController>()
+            ? Get.find<AuthController>()
+            : null);
+    final user = auth?.currentUser.value;
+    return auth?.isSessionReady.value == true && user?.role == 'admin';
+  }
+
+  void _bindAuthState() {
+    if (!Get.isRegistered<AuthController>()) {
+      return;
+    }
+
+    _authController = Get.find<AuthController>();
+    _authUserWorker?.dispose();
+    _authReadyWorker?.dispose();
+
+    _authUserWorker = ever(_authController!.currentUser, (_) {
+      _syncAdminAccess();
+    });
+
+    _authReadyWorker = ever(_authController!.isSessionReady, (_) {
+      _syncAdminAccess();
+    });
+
+    _syncAdminAccess();
+  }
+
+  void _syncAdminAccess() {
+    final canAccess = _canAccessAdminData();
+    if (canAccess == _hasAdminAccess) {
+      return;
+    }
+
+    _hasAdminAccess = canAccess;
+    if (!canAccess) {
+      _doctorsSubscription?.cancel();
+      _schedulesSubscription?.cancel();
+      _doctors.clear();
+      _schedules.clear();
+      _filteredSchedules.clear();
+      return;
+    }
+
+    loadSchedules();
+    loadDoctors();
+    _setupRealtimeListeners();
+  }
+
   // Setup realtime listeners untuk auto-update data
   void _setupRealtimeListeners() {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     // Cancel existing subscriptions
     _doctorsSubscription?.cancel();
     _schedulesSubscription?.cancel();
@@ -132,8 +190,11 @@ class ScheduleController extends GetxController {
           createdAt: (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
           updatedAt: (data['updated_at'] as Timestamp?)?.toDate(),
         );
-      }).toList();
+        }).toList();
       update();
+    }, onError: (error) {
+      if (isClosed) return;
+      debugPrint('Failed to listen to doctors collection: $error');
     });
 
     // Listen to schedules collection untuk auto-update list jadwal
@@ -148,6 +209,9 @@ class ScheduleController extends GetxController {
           .map((doc) => ScheduleAdminModel.fromFirestore(doc))
           .toList();
       _applyFilters();
+    }, onError: (error) {
+      if (isClosed) return;
+      debugPrint('Failed to listen to schedules collection: $error');
     });
   }
 
@@ -156,6 +220,8 @@ class ScheduleController extends GetxController {
     // Cancel subscriptions to prevent memory leaks
     _doctorsSubscription?.cancel();
     _schedulesSubscription?.cancel();
+    _authUserWorker?.dispose();
+    _authReadyWorker?.dispose();
     
     // Dispose controllers
     searchController.dispose();
@@ -166,6 +232,10 @@ class ScheduleController extends GetxController {
 
   // Load all schedules
   Future<void> loadSchedules() async {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     try {
       _isLoading.value = true;
       update();
@@ -227,6 +297,10 @@ class ScheduleController extends GetxController {
 
   // Load all doctors
   Future<void> loadDoctors() async {
+    if (!_canAccessAdminData()) {
+      return;
+    }
+
     try {
       final result = await getAllDoctors();
       _doctors.value = result;
@@ -321,7 +395,7 @@ class ScheduleController extends GetxController {
   }
 
   // Add new schedule
-  Future<void> addNewSchedule() async {
+  Future<void> addNewSchedule(BuildContext context) async {
     if (!_isFormValid.value) return;
 
     try {
@@ -345,8 +419,10 @@ class ScheduleController extends GetxController {
 
       await addSchedule(schedule);
       _clearForm();
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
       await loadSchedules();
-      Get.back();
 
       _showSuccess('Jadwal berhasil ditambahkan');
     } catch (e) {
@@ -358,7 +434,7 @@ class ScheduleController extends GetxController {
   }
 
   // Update existing schedule
-  Future<void> updateExistingSchedule(String id) async {
+  Future<void> updateExistingSchedule(String id, BuildContext context) async {
     if (!_isFormValid.value || _currentSchedule.value == null) return;
 
     try {
@@ -379,8 +455,10 @@ class ScheduleController extends GetxController {
 
       await updateSchedule(id, schedule);
       _clearForm();
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
       await loadSchedules();
-      Get.back();
 
       _showSuccess('Jadwal berhasil diperbarui');
     } catch (e) {
@@ -392,183 +470,201 @@ class ScheduleController extends GetxController {
   }
 
   // Delete schedule with confirmation
-  Future<void> deleteScheduleById(String id) async {
+  Future<void> deleteScheduleById(String id, BuildContext context, {String? dayToDeactivate}) async {
     try {
       final scheduleData = _schedules.firstWhereOrNull((schedule) => schedule.id == id) ??
           await getScheduleById(id);
-      final queueCount = scheduleData?.currentPatients ?? 0;
-      final doctorName = scheduleData?.doctorName;
-      final scheduleInfo = scheduleData == null
-          ? null
+      
+      if (scheduleData == null) {
+        throw Exception('Jadwal tidak ditemukan');
+      }
+
+      final isPartialDeactivate = dayToDeactivate != null && scheduleData.daysOfWeek.length > 1;
+      final queueCount = scheduleData.currentPatients;
+      final doctorName = scheduleData.doctorName;
+      final scheduleInfo = isPartialDeactivate
+          ? '$dayToDeactivate (${scheduleData.startTime.hour.toString().padLeft(2, '0')}:${scheduleData.startTime.minute.toString().padLeft(2, '0')} - ${scheduleData.endTime.hour.toString().padLeft(2, '0')}:${scheduleData.endTime.minute.toString().padLeft(2, '0')})'
           : '${scheduleData.daysOfWeek.join(', ')} (${scheduleData.startTime.hour.toString().padLeft(2, '0')}:${scheduleData.startTime.minute.toString().padLeft(2, '0')} - ${scheduleData.endTime.hour.toString().padLeft(2, '0')}:${scheduleData.endTime.minute.toString().padLeft(2, '0')})';
 
+      if (!context.mounted) return;
+
       // Tampilkan dialog konfirmasi
-      final confirmed = await Get.dialog<bool>(
-        AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Color(0xFFEF4444),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Nonaktifkan Jadwal?',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 24,
                   ),
                 ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Anda akan menonaktifkan jadwal:',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Jadwal ini akan disembunyikan dari daftar aktif.',
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.person, color: Color(0xFF3B82F6), size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _formatDoctorName(doctorName ?? 'Unknown'),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isPartialDeactivate ? 'Nonaktifkan Hari Praktik?' : 'Nonaktifkan Jadwal?',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today, color: Color(0xFF64748B), size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            scheduleInfo ?? 'Unknown',
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              if (queueCount > 0) ...[
-                const SizedBox(height: 16),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isPartialDeactivate
+                      ? 'Anda akan menonaktifkan hari praktik:'
+                      : 'Anda akan menonaktifkan jadwal:',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isPartialDeactivate
+                      ? 'Hari ini akan dihapus dari jadwal praktek dokter.'
+                      : 'Jadwal ini akan disembunyikan dari daftar aktif.',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
+                    color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFFECACA)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.info_outline, color: Color(0xFFEF4444), size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'PERHATIAN!',
-                            style: TextStyle(
-                              color: Color(0xFFEF4444),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.people, size: 16, color: Color(0xFF64748B)),
-                          const SizedBox(width: 6),
-                          Text(
-                            '$queueCount data antrean akan dihapus',
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
+                          const Icon(Icons.person, color: Color(0xFF3B82F6), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _formatDoctorName(doctorName),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tindakan ini tidak dapat dibatalkan!',
-                        style: TextStyle(
-                          color: Colors.red[700],
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today, color: Color(0xFF64748B), size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              scheduleInfo,
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+                if (queueCount > 0) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Color(0xFFEF4444), size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'PERHATIAN!',
+                              style: TextStyle(
+                                color: Color(0xFFEF4444),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.people, size: 16, color: Color(0xFF64748B)),
+                            const SizedBox(width: 6),
+                            Text(
+                              isPartialDeactivate
+                                  ? '$queueCount data antrean pada jadwal ini akan terpengaruh'
+                                  : '$queueCount data antrean akan dihapus',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tindakan ini tidak dapat dibatalkan!',
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(result: false),
-              child: const Text('Batal'),
             ),
-            ElevatedButton(
-              onPressed: () => Get.back(result: true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Batal'),
               ),
-              child: const Text('Nonaktifkan', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Nonaktifkan', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       );
 
       if (confirmed != true) return;
@@ -576,10 +672,20 @@ class ScheduleController extends GetxController {
       _isLoading.value = true;
       update();
 
-      await deleteSchedule(id);
-      await loadSchedules();
-
-      _showSuccess('Jadwal berhasil dinonaktifkan');
+      if (isPartialDeactivate) {
+        final updatedDays = List<String>.from(scheduleData.daysOfWeek)..remove(dayToDeactivate);
+        final updatedSchedule = scheduleData.copyWith(
+          daysOfWeek: updatedDays,
+          updatedAt: DateTime.now(),
+        );
+        await updateSchedule(id, updatedSchedule);
+        await loadSchedules();
+        _showSuccess('Hari $dayToDeactivate berhasil dihapus dari jadwal');
+      } else {
+        await deleteSchedule(id);
+        await loadSchedules();
+        _showSuccess('Jadwal berhasil dinonaktifkan');
+      }
     } catch (e) {
       _showError('Gagal menonaktifkan jadwal: ${e.toString()}');
     } finally {
@@ -607,22 +713,30 @@ class ScheduleController extends GetxController {
   }
 
   // Show add schedule dialog
-  void showAddScheduleDialog() {
+  void showAddScheduleDialog(BuildContext context) {
     _clearForm();
     _currentSchedule.value = null;
-    Get.dialog(
-      const AddEditScheduleDialog(),
+    showDialog(
+      context: context,
       barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return const AddEditScheduleDialog();
+      },
     );
   }
 
   // Show edit schedule dialog
-  void showEditScheduleDialog(ScheduleAdminEntity schedule) {
-    _currentSchedule.value = schedule;
-    _fillFormWithSchedule(schedule);
-    Get.dialog(
-      const AddEditScheduleDialog(),
+  void showEditScheduleDialog(ScheduleAdminEntity schedule, BuildContext context) {
+    // Find the original full schedule from the schedules list to get all days of week
+    final originalSchedule = _schedules.firstWhereOrNull((s) => s.id == schedule.id) ?? schedule;
+    _currentSchedule.value = originalSchedule;
+    _fillFormWithSchedule(originalSchedule);
+    showDialog(
+      context: context,
       barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return const AddEditScheduleDialog();
+      },
     );
   }
 
@@ -631,11 +745,11 @@ class ScheduleController extends GetxController {
     _selectedDate.value = schedule.date;
     _startTime.value = schedule.startTime;
     _endTime.value = schedule.endTime;
-    _selectedDays.value = schedule.daysOfWeek;
+    _selectedDays.value = List<String>.from(schedule.daysOfWeek);
     maxPatientsController.text = schedule.maxPatients.toString();
     
     // Find and set doctor
-    final doctor = _doctors.firstWhereOrNull((d) => d.id == schedule.doctorId);
+    final doctor = _doctors.firstWhereOrNull((d) => d.userId == schedule.doctorId || d.id == schedule.doctorId);
     if (doctor != null) {
       setSelectedDoctor(doctor);
     }
@@ -680,29 +794,19 @@ class ScheduleController extends GetxController {
 
   // Show error snackbar
   void _showError(String message) {
-    Get.snackbar(
-      'Error',
-      message,
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Colors.red.shade100,
-      colorText: Colors.red.shade800,
-      margin: const EdgeInsets.all(16),
-      borderRadius: 8,
-      duration: const Duration(seconds: 3),
+    AppSnackbar.show(
+      title: 'Error',
+      message: message,
+      isError: true,
     );
   }
 
   // Show success snackbar
   void _showSuccess(String message) {
-    Get.snackbar(
-      'Berhasil',
-      message,
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Colors.green.shade100,
-      colorText: Colors.green.shade800,
-      margin: const EdgeInsets.all(16),
-      borderRadius: 8,
-      duration: const Duration(seconds: 3),
+    AppSnackbar.show(
+      title: 'Berhasil',
+      message: message,
+      isError: false,
     );
   }
 }

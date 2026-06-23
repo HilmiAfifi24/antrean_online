@@ -49,6 +49,7 @@ class AuthController extends GetxController {
   var currentUser = Rxn<UserEntity>();
   var isCheckingRememberedCredentials = true.obs;
   var hasLoginError = false.obs;
+  var isSessionReady = false.obs;
 
   @override
   void onInit() {
@@ -81,6 +82,7 @@ class AuthController extends GetxController {
 
   Future<void> _restoreActiveSession() async {
     try {
+      isSessionReady.value = false;
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser == null) {
         currentUser.value = null;
@@ -104,6 +106,8 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       debugPrint('Error restoring session role: $e');
+    } finally {
+      isSessionReady.value = true;
     }
   }
 
@@ -143,6 +147,7 @@ class AuthController extends GetxController {
         await registerUser.repository.logout(); // Logout immediately
         await clearCurrentRole();
         currentUser.value = null;
+        isSessionReady.value = false;
         Get.snackbar(
           "Akses Ditolak",
           "Anda tidak memiliki akses sebagai ${_getRoleDisplayName(expectedRole)}. Role Anda: ${_getRoleDisplayName(effectiveRole)}",
@@ -156,6 +161,7 @@ class AuthController extends GetxController {
       }
 
       await saveCurrentRole(effectiveRole);
+      isSessionReady.value = true;
 
       // Show success message
       Get.snackbar(
@@ -239,6 +245,7 @@ class AuthController extends GetxController {
       final user = await registerUser(email, password, role, name, phone);
       currentUser.value = user;
       await saveCurrentRole(user.role);
+      isSessionReady.value = true;
       
       Get.snackbar(
         "Sukses",

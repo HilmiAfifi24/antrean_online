@@ -1,16 +1,16 @@
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/queue_entity.dart';
 import '../../domain/usecases/get_completed_queues.dart';
-import '../../data/repositories/doctor_repository_impl.dart';
 
 class DoctorHistoryController extends GetxController {
   late final GetCompletedQueues getCompletedQueues;
 
-  DoctorHistoryController() {
-    getCompletedQueues = GetCompletedQueues(DoctorRepositoryImpl());
-  }
+  DoctorHistoryController({
+    required this.getCompletedQueues,
+  });
 
   final RxList<QueueEntity> completedQueues = <QueueEntity>[].obs;
   final RxBool isLoading = true.obs;
@@ -25,13 +25,22 @@ class DoctorHistoryController extends GetxController {
     
     // Retrieve date from arguments
     final args = Get.arguments as Map<String, dynamic>?;
-    if (args != null && args['date'] != null) {
-      selectedDate = DateTime.parse(args['date']);
-    } else {
-      selectedDate = DateTime.now();
-    }
+    selectedDate = _resolveSelectedDate(args?['date']);
 
     _loadHistory();
+  }
+
+  DateTime _resolveSelectedDate(dynamic rawDate) {
+    if (rawDate is DateTime) {
+      return rawDate;
+    }
+    if (rawDate is Timestamp) {
+      return rawDate.toDate();
+    }
+    if (rawDate is String && rawDate.isNotEmpty) {
+      return DateTime.tryParse(rawDate) ?? DateTime.now();
+    }
+    return DateTime.now();
   }
 
   void _loadHistory() {

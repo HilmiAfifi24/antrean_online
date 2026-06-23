@@ -129,6 +129,8 @@ class QueueController extends GetxController {
         return;
       }
 
+      _cleanupExpiredQueues(nextUserId);
+
       _queueSubscription = repository.watchActiveQueues(nextUserId).listen((
         queues,
       ) {
@@ -143,6 +145,14 @@ class QueueController extends GetxController {
     _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen(
       handleAuthChange,
     );
+  }
+
+  Future<void> _cleanupExpiredQueues(String patientId) async {
+    try {
+      await repository.cleanupExpiredQueues(patientId);
+    } catch (e) {
+      debugPrint('Failed to cleanup expired queues: $e');
+    }
   }
 
   void _bindCurrentClinicQueue(QueueEntity? queue) {
@@ -363,12 +373,6 @@ class QueueController extends GetxController {
         return null;
       }
 
-      // Check if schedule is full
-      if (schedule.isFull) {
-        _showError('Maaf, jadwal dokter sudah penuh');
-        return null;
-      }
-
       final isValid = await validateMultipleBooking(
         patientId: user.uid,
         doctorId: schedule.doctorId,
@@ -449,9 +453,9 @@ class QueueController extends GetxController {
   }
 
   // Cancel queue
-  Future<void> cancelQueue([QueueEntity? selectedQueue]) async {
+  Future<bool> cancelQueue([QueueEntity? selectedQueue]) async {
     final queue = selectedQueue ?? activeQueue;
-    if (queue == null) return;
+    if (queue == null) return false;
 
     try {
       final confirmed = await Get.dialog<bool>(
@@ -483,22 +487,26 @@ class QueueController extends GetxController {
         ),
       );
 
-      if (confirmed == true) {
-        _isLoading.value = true;
-        await repository.cancelQueue(queue.id, queue.scheduleId);
-        _activeQueues.removeWhere((item) => item.id == queue.id);
-
-        Get.snackbar(
-          'Berhasil',
-          'Antrean berhasil dibatalkan',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orange.shade100,
-          colorText: Colors.orange.shade900,
-          duration: const Duration(seconds: 2),
-        );
+      if (confirmed != true) {
+        return false;
       }
+
+      _isLoading.value = true;
+      await repository.cancelQueue(queue.id, queue.scheduleId);
+      _activeQueues.removeWhere((item) => item.id == queue.id);
+
+      Get.snackbar(
+        'Berhasil',
+        'Antrean berhasil dibatalkan',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange.shade100,
+        colorText: Colors.orange.shade900,
+        duration: const Duration(seconds: 2),
+      );
+      return true;
     } catch (e) {
       _showError('Gagal membatalkan antrean: ${e.toString()}');
+      return false;
     } finally {
       _isLoading.value = false;
     }

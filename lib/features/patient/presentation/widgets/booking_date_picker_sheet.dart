@@ -198,7 +198,9 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                     );
 
                     final isPast = scheduleEndDateTime.isBefore(now);
-                    final isAvailable = !item.isFull && !isPast;
+                    final isQuotaFull = item.isFull;
+                    final isSelectable = !isPast;
+                    final isAvailable = isSelectable && !isQuotaFull;
 
                     return Material(
                       color: Colors.transparent,
@@ -211,7 +213,7 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
 
                           Get.find<QueueController>();
 
-                          if (isAvailable) {
+                          if (isSelectable) {
                             Get.back(); // close bottom sheet
 
                             // Navigate and pass specific date
@@ -246,20 +248,6 @@ class _BookingDatePickerSheetState extends State<BookingDatePickerSheet> {
                               icon: const Icon(
                                 Icons.timer_off,
                                 color: Colors.grey,
-                              ),
-                            );
-                          } else {
-                            Get.snackbar(
-                              'Penuh',
-                              'Maaf, kuota untuk tanggal ini sudah penuh.',
-                              snackPosition: SnackPosition.TOP,
-                              backgroundColor: Colors.red[50]!,
-                              colorText: Colors.red[900]!,
-                              margin: const EdgeInsets.all(16),
-                              borderRadius: 12,
-                              icon: const Icon(
-                                Icons.event_busy,
-                                color: Color(0xFFE53935),
                               ),
                             );
                           }
